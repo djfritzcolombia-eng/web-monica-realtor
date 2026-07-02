@@ -1,0 +1,101 @@
+/* src/components/CustomDropdown.module.css */
+
+
+.dropdown {
+    position: relative;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
+    box-sizing: border-box;
+}
+
+.toggle {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 16px 44px 16px 22px;
+    font-size: 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(58, 51, 44, 0.14);
+    background: rgba(255, 255, 255, 0.55);
+    color: var(--color-topo-deep, #3a332c);
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: border-color .2s;
+    outline: none;
+    gap: 10px;
+    box-sizing: border-box;
+}
+
+.toggle:focus,
+.toggle:hover {
+    border-color: rgba(58, 51, 44, 0.28);
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: none;
+}
+
+.arrow {
+    width: 18px;
+    height: 18px;
+    fill: #d8a48f;
+    flex-shrink: 0;
+}
+
+.menu {
+    position: absolute;
+    top: 110%;
+    left: 0;
+    min-width: 220px;
+    max-width: 100vw;
+    width: 100%;
+    background: var(--surface-bg, #fff);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(58, 51, 44, 0.08);
+    border: 1px solid var(--border-subtle, #e8e4df);
+    margin: 0;
+    padding: 6px 0;
+    z-index: 1002;
+    list-style: none;
+    animation: fadeIn .18s cubic-bezier(.4, 0, .2, 1);
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 320px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.menu li {
+    padding: 13px 22px;
+    font-size: 16px;
+    color: #6e6259;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    border: none;
+    background: none;
+}
+
+.menu li:hover,
+.menu li:focus {
+    background: var(--fill-nude, #f3ede6);
+    color: var(--color-topo-deep, #3a332c);
+}
+
+.selected {
+    background: var(--color-topo-deep, #3a332c);
+    color: #fff;
+}

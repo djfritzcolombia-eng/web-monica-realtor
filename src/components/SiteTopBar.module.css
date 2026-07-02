@@ -1,0 +1,113 @@
+.bar {
+    width: 100%;
+    background: rgba(240, 238, 235, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--color-topo-deep, #3a332c);
+    padding: 14px clamp(20px, 5vw, 48px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 52px;
+    box-sizing: border-box;
+    border-bottom: 1px solid rgba(58, 51, 44, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.brand {
+    font-family: var(--font-main), serif;
+    font-size: 1.05rem;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.brandAccent {
+    font-style: italic;
+    text-decoration: none;
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+    gap: clamp(12px, 3vw, 28px);
+    margin-left: auto;
+}
+
+.navLink {
+    background: none;
+    border: none;
+    color: inherit;
+    font-family: var(--font-alt), sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 6px 0;
+    opacity: 0.72;
+    transition: opacity 0.15s ease;
+    white-space: nowrap;
+}
+
+.navLink:hover {
+    opacity: 1;
+}
+
+.backLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Formato editorial — igual al home (centrado, serif) */
+.barEditorial {
+    width: 100%;
+    text-align: center;
+    padding: 36px 20px 8px;
+    background: transparent;
+    border: none;
+    position: relative;
+    z-index: 2;
+    box-sizing: border-box;
+}
+
+.brandLarge {
+    font-family: var(--font-main), serif;
+    font-size: clamp(1.85rem, 5vw, 2.35rem);
+    font-weight: 400;
+    color: var(--color-topo-deep, #3a332c);
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    margin: 0;
+}
+
+.brandSubtitle {
+    font-family: var(--font-alt), sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--color-topo, #6e6259);
+    letter-spacing: 0.04em;
+    margin: 8px 0 0;
+    line-height: 1.4;
+}
+
+.navEditorial {
+    margin-top: 12px;
+}
+
+@media (max-width: 480px) {
+    .brand {
+        font-size: 0.98rem;
+    }
+
+    .navLink {
+        font-size: 10px;
+        letter-spacing: 0.1em;
+    }
+}

@@ -1,0 +1,201 @@
+.wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin: 0;
+    padding: 8px 0 0;
+    gap: 0;
+}
+
+.eyebrow {
+    margin: 0 0 10px;
+    font-family: var(--font-alt), sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-topo, #6e6259);
+    text-align: center;
+}
+
+.heading {
+    font-family: var(--font-main), serif;
+    font-weight: 400;
+    font-size: clamp(1.35rem, 3.8vw, 1.75rem);
+    margin: 0 auto 28px;
+    color: var(--color-topo-deep, #3a332c);
+    letter-spacing: -0.01em;
+    text-align: center;
+    line-height: 1.2;
+    max-width: 440px;
+    transform-origin: center center;
+}
+
+.headingIntro {
+    animation: headingBreathOnce 2.4s ease-in-out 1.2s both;
+    will-change: transform;
+}
+
+@keyframes headingBreathOnce {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .headingIntro {
+        animation: none;
+    }
+}
+
+.heading em {
+    color: var(--color-terracotta-deep, #c8937e);
+    font-style: italic;
+    font-weight: 400;
+}
+
+.error {
+    color: #b00020;
+    margin-bottom: 8px;
+    font-size: 14px;
+    text-align: center;
+}
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+}
+
+.searchRow {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+.searchRowNarrow {
+    flex-direction: column;
+}
+
+.dropdownWrap {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 100%;
+}
+
+.pillPrimary {
+    padding: 0 26px;
+    border-radius: 999px;
+    border: 1px solid var(--color-topo-deep, #3a332c);
+    background: var(--color-topo-deep, #3a332c);
+    color: #fff;
+    font-weight: 500;
+    font-size: 11px;
+    font-family: var(--font-alt), sans-serif;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    height: 52px;
+    min-height: 52px;
+    min-width: 120px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.pillPrimary:disabled {
+    background: transparent;
+    border-color: var(--border-nude, #e6dace);
+    color: var(--color-topo, #6e6259);
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.pillPrimary:not(:disabled):hover {
+    background: var(--color-emerald-muted, #2d5c54);
+    border-color: var(--color-emerald-muted, #2d5c54);
+}
+
+.pillPrimaryFull {
+    width: 100%;
+}
+
+.simulatorsRow {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 520px;
+    margin: 6px auto 0;
+}
+
+.pillGhost {
+    border-radius: 999px;
+    border: 1px solid rgba(58, 51, 44, 0.22);
+    background: transparent;
+    color: var(--color-topo-deep, #3a332c);
+    padding: 0 22px;
+    height: 46px;
+    min-height: 46px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-family: var(--font-alt), sans-serif;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.2;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    flex: 1 1 200px;
+    max-width: 248px;
+}
+
+.pillGhost:hover {
+    background: rgba(255, 255, 255, 0.45);
+    border-color: var(--color-emerald-muted, #2d5c54);
+    color: var(--color-emerald-muted, #2d5c54);
+}
+
+.pillGhostFull {
+    flex: 1 1 100%;
+    max-width: 100%;
+}
+
+@media (max-width: 480px) {
+    .simulatorsRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pillGhost {
+        max-width: 100%;
+        width: 100%;
+    }
+}

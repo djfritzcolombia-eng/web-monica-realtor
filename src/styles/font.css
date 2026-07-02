@@ -1,0 +1,7 @@
+/* src/styles/font.css */
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital,wght@0,400;1,400&family=Manrope:wght@400;600;700;800&display=swap');
+
+:root {
+    --font-main: 'DM Serif Display', serif;
+    --font-alt: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}

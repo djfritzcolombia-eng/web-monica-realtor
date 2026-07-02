@@ -1,0 +1,1067 @@
+// src/pages/SRHome.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import GlobalReset from "../components/GlobalReset";
+import Section from "../components/Section";
+import CardGrid from "../components/CardGrid";
+import WasiPropertyCard from "../components/cards/WasiPropertyCard";
+import SkeletonCard from "../components/SkeletonCard";
+import FloatingSocial from "../components/FloatingSocial";
+import AppVersion from "../components/AppVersion";
+import RegionCityFilter from "../components/RegionCityFilter";
+import CreditFilterBanner from "../components/CreditFilterBanner";
+import { parseSimulatorFromSearch } from "../utils/simulatorDeepLink";
+import {
+    filterPropertiesByCreditBudget,
+    formatCreditFilterMessage,
+    loadCreditSession,
+    parseCreditSimulatorFromSearch,
+    saveCreditSession,
+} from "../utils/creditSimulatorDeepLink";
+import { formatCOP } from "../utils/housingCreditCalculator";
+import {
+    ALL_CREDIT_SEARCH_KEYS,
+    ALL_CREDIT_SEARCH_LABELS,
+    buildWasiSearchQuery,
+    labelsFromGroupKeys,
+    MEDELLIN_CITY_ID,
+} from "../constants/searchZones";
+import { dedupeWasiItems } from "../utils/wasiAggregateFetch";
+import ProfileHeader from "../components/ProfileHeader";
+import SiteTopBar from "../components/SiteTopBar";
+import SiteBackButton from "../components/SiteBackButton";
+import { useSessionTracking } from "../context/SessionTrackingContext";
+import { styles } from "../styles/styles";
+import { paginationStyles, bandStyles } from "./SRHome.styles";
+import { postRequest } from "../services/api";
+import { buildSearchMetadata } from "../utils/eventMetadata";
+import "./SRHome.animations.css";
+import landingStyles from "../components/LandingHero.module.css";
+
+const PROPERTIES_PER_PAGE = 18;
+const API_MAX_PER_PAGE = 100;
+const CREDIT_FILTER_FETCH_POOL = API_MAX_PER_PAGE;
+
+const clampPerPage = (value) => Math.min(API_MAX_PER_PAGE, Math.max(1, value));
+
+// 🔠 Normalizador
+const norm = (s = "") =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+// Medellín conocido en Wasi
+const MEDELLIN_ID = MEDELLIN_CITY_ID;
+
+// Mapper de WASI
+// ...existing code...
+
+// Extraer arreglo de la respuesta de Wasi (puede venir como array u objeto indexado "0","1"...)
+// ...existing code...
+
+// Paginación
+const Pagination = ({ currentPage, totalPages, totalItems, perPage, onPageChange }) => {
+    const [hoveredButton, setHoveredButton] = useState(null);
+    if (totalPages <= 1) return null;
+
+    const handlePageChange = (page) => {
+        if (page >= 1 && page <= totalPages && page !== currentPage) onPageChange(page);
+    };
+
+    const renderPageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        for (let i = startPage; i <= endPage; i++) {
+            pages.push(
+                // Elimina el boxShadow para que el borde encapsule completamente el video y no se vea el fondo exterior
+                <button
+                    key={i}
+                    style={{
+                        ...paginationStyles.button,
+                        ...(i === currentPage ? paginationStyles.activeButton : {}),
+                        ...(hoveredButton === i ? paginationStyles.buttonHover : {}),
+                    }}
+                    onClick={() => handlePageChange(i)}
+                    onMouseEnter={() => setHoveredButton(i)}
+                    onMouseLeave={() => setHoveredButton(null)}
+                >
+                    {i}
+                </button>
+            );
+        }
+        return pages;
+    };
+
+    return (
+        <div style={paginationStyles.container}>
+            <button
+                style={{
+                    ...paginationStyles.button,
+                    ...(currentPage === 1 ? paginationStyles.disabledButton : {}),
+                    ...(hoveredButton === "prev" ? paginationStyles.buttonHover : {}),
+                }}
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                onMouseEnter={() => setHoveredButton("prev")}
+                onMouseLeave={() => setHoveredButton(null)}
+                aria-label="Página anterior"
+            >
+                ←
+            </button>
+
+            {renderPageNumbers()}
+
+            <button
+                style={{
+                    ...paginationStyles.button,
+                    ...(currentPage === totalPages ? paginationStyles.disabledButton : {}),
+                    ...(hoveredButton === "next" ? paginationStyles.buttonHover : {}),
+                }}
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                onMouseEnter={() => setHoveredButton("next")}
+                onMouseLeave={() => setHoveredButton(null)}
+                aria-label="Página siguiente"
+            >
+                →
+            </button>
+
+            <div style={paginationStyles.info}>
+                Página {currentPage} de {totalPages} • Mostrando{" "}
+                {(currentPage - 1) * perPage + 1} -{" "}
+                {Math.min(currentPage * perPage, totalItems)} de {totalItems} propiedades
+            </div>
+        </div>
+    );
+};
+
+
+export default function SRHome() {
+    // Estado de WASI
+    const [wasiProps, setWasiProps] = useState([]);
+    const [wasiLoading, setWasiLoading] = useState(false);
+    const [wasiError, setWasiError] = useState(null);
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        perPage: PROPERTIES_PER_PAGE,
+        totalPages: 1,
+        totalItems: 0,
+    });
+    const [filteredPool, setFilteredPool] = useState([]);
+
+    // Filtros seleccionados (para UI)
+    const [selectedGroups, setSelectedGroups] = useState([]); // ["itagui","el poblado",...]
+    const [selectedZones, setSelectedZones] = useState([]);   // ids de zona si “El Poblado”
+
+    // UI móvil: drawer filtros
+    const [isMobile, setIsMobile] = useState(false);
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+    // Para conservar el último query (paginación)
+    // lastQuery = { page, cityIds:[], zones:[] }
+    const [lastQuery, setLastQuery] = useState(null);
+
+    // Nuevo: mostrar filtro primero, luego resultados
+    const [filterApplied, setFilterApplied] = useState(false);
+
+    const [simulatorBoot, setSimulatorBoot] = useState(() => parseSimulatorFromSearch());
+    const [creditSimulatorBoot, setCreditSimulatorBoot] = useState(() => parseCreditSimulatorFromSearch());
+    const [creditBudgetFilter, setCreditBudgetFilter] = useState(() => {
+        const fromUrl = parseCreditSimulatorFromSearch();
+        if (fromUrl?.filter) return fromUrl.filter;
+        return loadCreditSession()?.filter ?? null;
+    });
+    const [creditSearchSelection, setCreditSearchSelection] = useState(
+        () => parseCreditSimulatorFromSearch()?.searchSelection ?? loadCreditSession()?.searchSelection ?? null
+    );
+    const [creditExpandOpen, setCreditExpandOpen] = useState(false);
+    const [filteredCount, setFilteredCount] = useState(0);
+    const { track } = useSessionTracking();
+
+    useEffect(() => {
+        if (!creditSimulatorBoot) return;
+        saveCreditSession({
+            results: creditSimulatorBoot.results,
+            filter: creditSimulatorBoot.filter,
+            searchSelection: creditSimulatorBoot.searchSelection,
+        });
+        if (creditSimulatorBoot.filter) setCreditBudgetFilter(creditSimulatorBoot.filter);
+        if (creditSimulatorBoot.searchSelection) setCreditSearchSelection(creditSimulatorBoot.searchSelection);
+    }, [creditSimulatorBoot]);
+
+    useEffect(() => {
+        const session = loadCreditSession();
+        if (!session?.filter && !creditBudgetFilter) return;
+        const filter = session?.filter || creditBudgetFilter;
+        if (filter && (!filter.basePrice || filter.basePrice > 3_000_000_000)) {
+            setCreditBudgetFilter(null);
+            setCreditSearchSelection(null);
+            try {
+                sessionStorage.removeItem("monica_credit_simulation_v1");
+            } catch {
+                // ignore
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!creditSimulatorBoot) return;
+        track("page_view", {
+            action: "credit_simulator_deep_link",
+            maxPropertyPrice: creditSimulatorBoot.filter?.maxPropertyPrice,
+            minPropertyPrice: creditSimulatorBoot.filter?.minPropertyPrice,
+            autoSearchPick: creditSimulatorBoot.autoSearchPick,
+            showResults: creditSimulatorBoot.showResults,
+        });
+    }, [creditSimulatorBoot, track]);
+
+    const creditExpandData = useMemo(() => {
+        if (!creditExpandOpen) return null;
+        const session = loadCreditSession();
+        return {
+            results: session?.results,
+            filter: creditBudgetFilter,
+            searchSelection: creditSearchSelection,
+            autoSearchPick: true,
+        };
+    }, [creditExpandOpen, creditBudgetFilter, creditSearchSelection]);
+
+    const creditZoneLabels = useMemo(() => {
+        if (creditSearchSelection?.allZones) return ALL_CREDIT_SEARCH_LABELS;
+        if (creditSearchSelection?.groupKeys?.length) {
+            return labelsFromGroupKeys(creditSearchSelection.groupKeys);
+        }
+        return selectedGroups.map((g) => {
+            const found = labelsFromGroupKeys([g]);
+            return found[0] || g;
+        });
+    }, [creditSearchSelection, selectedGroups]);
+
+    const applyCreditBudgetToProperties = (items, filterOverride = null) => {
+        const filter = filterOverride ?? creditBudgetFilter;
+        if (!filter) return items;
+        return filterPropertiesByCreditBudget(items, filter);
+    };
+
+    // Utilidades para mapear y extraer datos de WASI
+    function mapWasiItem(raw) {
+        if (!raw || typeof raw !== "object") return null;
+        const mainImg = raw?.main_image || {};
+        const image = mainImg.url_big || mainImg.url || mainImg.url_original || null;
+        const galleriesImages = [];
+        if (raw?.galleries && Array.isArray(raw.galleries)) {
+            raw.galleries.forEach((gallery) => {
+                if (gallery && typeof gallery === "object") {
+                    Object.values(gallery).forEach((img) => {
+                        if (img && (img.url_big || img.url || img.url_original)) {
+                            galleriesImages.push({
+                                url: img.url_big || img.url || img.url_original,
+                                id: img.id,
+                                description: img.description || "",
+                                position: img.position || 0,
+                            });
+                        }
+                    });
+                }
+            });
+        }
+        const featuresInt = Array.isArray(raw?.features?.internal)
+            ? raw.features.internal.map((f) => f?.nombre || f?.name).filter(Boolean)
+            : [];
+        const featuresExt = Array.isArray(raw?.features?.external)
+            ? raw.features.external.map((f) => f?.nombre || f?.name).filter(Boolean)
+            : [];
+        const agent = [raw?.user_data?.first_name, raw?.user_data?.last_name]
+            .filter(Boolean)
+            .join(" ");
+        const salePrice = Number(raw.sale_price) || null;
+        const rentPrice = Number(raw.rent_price) || null;
+        const operationType = raw.for_sale && raw.for_rent
+            ? "venta_arriendo"
+            : raw.for_sale || salePrice
+                ? "venta"
+                : raw.for_rent || rentPrice
+                    ? "arriendo"
+                    : raw.sale_price_label
+                        ? "venta"
+                        : raw.rent_price_label
+                            ? "arriendo"
+                            : null;
+        return {
+            id: raw.id_property || raw.id,
+            title: raw.title || "",
+            propertyType:
+                raw.property_type_label ||
+                raw.id_property_type_label ||
+                raw.type_label ||
+                raw.property_label ||
+                "",
+            operationType,
+            salePrice,
+            rentPrice,
+            priceLabel: raw.sale_price_label || raw.rent_price_label || "",
+            areaValue: raw.area || raw.built_area || raw.private_area || "",
+            areaUnit:
+                raw.unit_area_label ||
+                raw.unit_built_area_label ||
+                raw.unit_private_area_label ||
+                "",
+            bedrooms: raw.bedrooms || "",
+            bathrooms: raw.bathrooms || "",
+            garages: raw.garages || "",
+            address: raw.address || "",
+            zone: raw.zone_label || "",
+            city: raw.city_label || "",
+            stratum: raw.stratum || "",
+            floor: raw.floor || "",
+            condition: raw.property_condition_label || "",
+            year: raw.building_date || "",
+            adminFeeLabel: raw.maintenance_fee_label || "",
+            agent,
+            image,
+            href: raw.link || "",
+            featuresInt,
+            featuresExt,
+            galleries: raw.galleries || [],
+            allImages: [image, ...galleriesImages.map((img) => img.url)].filter(Boolean),
+        };
+    }
+    const extractWasiArray = (data) => {
+        if (!data) return [];
+        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data)) return data;
+        if (data?.data && typeof data.data === "object") {
+            return Object.values(data.data).filter((v) => v && typeof v === "object");
+        }
+        if (data && typeof data === "object") {
+            return Object.values(data).filter((v) => v && typeof v === "object");
+        }
+        return [];
+    };
+
+    // --- Core fetch con soporte para:
+    // (A) zones[] -> múltiples llamadas por id_zone
+    // (B) cityIds[] -> múltiples llamadas por id_city
+    // (C) uno u otro (nunca ambos a la vez en la misma ejecución)
+    const fetchWasiProperties = async ({ page = 1, cityIds = [], zones = [], creditFilterOverride = undefined }) => {
+        const activeCreditFilter = creditFilterOverride !== undefined ? creditFilterOverride : creditBudgetFilter;
+        const fetchSize = activeCreditFilter
+            ? CREDIT_FILTER_FETCH_POOL
+            : clampPerPage(pagination.perPage);
+        const apiPage = activeCreditFilter ? 1 : page;
+
+        const publishResults = (items, paginationPatch) => {
+            const filtered = applyCreditBudgetToProperties(items, activeCreditFilter);
+            setFilteredCount(filtered.length);
+            const perPage = pagination.perPage;
+            const targetPage = paginationPatch.currentPage ?? page;
+
+            if (activeCreditFilter) {
+                setFilteredPool(filtered);
+                const start = (targetPage - 1) * perPage;
+                setWasiProps(filtered.slice(start, start + perPage));
+                setPagination((prev) => ({
+                    ...prev,
+                    ...paginationPatch,
+                    currentPage: targetPage,
+                    totalItems: filtered.length,
+                    totalPages: Math.max(1, Math.ceil(filtered.length / perPage)),
+                }));
+                return;
+            }
+
+            setFilteredPool([]);
+            setWasiProps(filtered);
+            setPagination((prev) => ({
+                ...prev,
+                ...paginationPatch,
+            }));
+        };
+
+        const itemsForPublish = (aggregated) =>
+            activeCreditFilter ? aggregated : aggregated.slice(0, fetchSize);
+        try {
+            setWasiLoading(true);
+            setWasiError(null);
+
+            // Híbrido: zonas + ciudades (ej. Poblado + Envigado)
+            if (Array.isArray(zones) && zones.length > 0 && Array.isArray(cityIds) && cityIds.length > 0) {
+                const callCount = zones.length + cityIds.length;
+                const perCall = clampPerPage(Math.max(1, Math.ceil(fetchSize / callCount)));
+                const zoneCalls = zones.map((id_zone) =>
+                    postRequest("searchWasiProperties", {
+                        id_city: MEDELLIN_ID,
+                        id_zone,
+                        page: apiPage,
+                        per_page: perCall,
+                    }).catch((e) => ({ __error: e }))
+                );
+                const cityCalls = cityIds.map((id_city) =>
+                    postRequest("searchWasiProperties", {
+                        id_city,
+                        page: apiPage,
+                        per_page: perCall,
+                    }).catch((e) => ({ __error: e }))
+                );
+                const results = await Promise.all([...zoneCalls, ...cityCalls]);
+                let aggregated = [];
+                results.forEach((r) => {
+                    if (!r || r.__error || !r.success) return;
+                    const arr = extractWasiArray(r.data);
+                    aggregated = aggregated.concat(arr.map(mapWasiItem).filter(Boolean));
+                });
+                aggregated = dedupeWasiItems(aggregated);
+                publishResults(itemsForPublish(aggregated), {
+                    currentPage: page,
+                    totalItems: activeCreditFilter ? aggregated.length : aggregated.length,
+                    totalPages: activeCreditFilter
+                        ? Math.max(1, Math.ceil(aggregated.length / pagination.perPage))
+                        : Math.max(1, Math.ceil(aggregated.length / pagination.perPage)),
+                });
+                setLastQuery({ page, zones, cityIds });
+                return;
+            }
+
+            // A) Consulta por ZONAS (El Poblado)
+            if (Array.isArray(zones) && zones.length > 0) {
+                const perZone = clampPerPage(Math.max(1, Math.ceil(fetchSize / zones.length)));
+                const calls = zones.map((id_zone) =>
+                    postRequest("searchWasiProperties", {
+                        id_city: MEDELLIN_ID, // Poblado es Medellín
+                        id_zone,
+                        page: apiPage,
+                        per_page: perZone,
+                    }).catch((e) => ({ __error: e }))
+                );
+                const results = await Promise.all(calls);
+                let aggregated = [];
+                let totalItemsSum = 0;
+                results.forEach((r) => {
+                    if (!r || r.__error || !r.success) return;
+                    const arr = extractWasiArray(r.data);
+                    const mapped = arr.map(mapWasiItem).filter(Boolean);
+                    aggregated = aggregated.concat(mapped);
+                    const subtotal =
+                        r.pagination?.total_items ??
+                        r.data?.total ??
+                        r.data?.count ??
+                        mapped.length;
+                    totalItemsSum += Number(subtotal) || 0;
+                });
+                // dedupe
+                const seen = new Set();
+                aggregated = aggregated.filter((it) => {
+                    const key = it.id || it.href || it.title;
+                    if (!key || seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+                publishResults(itemsForPublish(aggregated), {
+                    currentPage: page,
+                    totalItems: activeCreditFilter ? aggregated.length : totalItemsSum,
+                    totalPages: activeCreditFilter
+                        ? Math.max(1, Math.ceil(aggregated.length / pagination.perPage))
+                        : Math.max(1, Math.ceil(totalItemsSum / pagination.perPage)),
+                });
+                setLastQuery({ page, zones, cityIds: [] });
+                return;
+            }
+            // B) Consulta por CIUDADES
+            if (Array.isArray(cityIds) && cityIds.length > 0) {
+                if (cityIds.length === 1) {
+                    const payload = { id_city: cityIds[0], page: apiPage, per_page: fetchSize };
+                    const result = await postRequest("searchWasiProperties", payload);
+                    if (result?.success) {
+                        const arr = extractWasiArray(result.data);
+                        const mapped = arr.map(mapWasiItem).filter(Boolean);
+                        publishResults(itemsForPublish(mapped), {
+                            currentPage: page,
+                            totalPages: activeCreditFilter
+                                ? Math.max(1, Math.ceil(mapped.length / pagination.perPage))
+                                : (result.pagination?.total_pages || 1),
+                            totalItems: activeCreditFilter
+                                ? mapped.length
+                                : (result.pagination?.total_items || mapped.length),
+                        });
+                        setLastQuery({ page, cityIds, zones: [] });
+                    } else {
+                        setWasiError(new Error(result?.error || "Error desconocido"));
+                    }
+                    return;
+                }
+                // varias ciudades (agregación manual)
+                const perCity = clampPerPage(Math.max(1, Math.ceil(fetchSize / cityIds.length)));
+                const calls = cityIds.map((id_city) =>
+                    postRequest("searchWasiProperties", {
+                        id_city,
+                        page: apiPage,
+                        per_page: perCity,
+                    }).catch((e) => ({ __error: e }))
+                );
+                const results = await Promise.all(calls);
+                let aggregated = [];
+                let totalItemsSum = 0;
+                results.forEach((r) => {
+                    if (!r || r.__error || !r.success) return;
+                    const arr = extractWasiArray(r.data);
+                    const mapped = arr.map(mapWasiItem).filter(Boolean);
+                    aggregated = aggregated.concat(mapped);
+                    const subtotal =
+                        r.pagination?.total_items ??
+                        r.data?.total ??
+                        r.data?.count ??
+                        mapped.length;
+                    totalItemsSum += Number(subtotal) || 0;
+                });
+                // dedupe
+                const seen = new Set();
+                aggregated = aggregated.filter((it) => {
+                    const key = it.id || it.href || it.title;
+                    if (!key || seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+                publishResults(itemsForPublish(aggregated), {
+                    currentPage: page,
+                    totalItems: activeCreditFilter ? aggregated.length : totalItemsSum,
+                    totalPages: activeCreditFilter
+                        ? Math.max(1, Math.ceil(aggregated.length / pagination.perPage))
+                        : Math.max(1, Math.ceil(totalItemsSum / pagination.perPage)),
+                });
+                setLastQuery({ page, cityIds, zones: [] });
+                return;
+            }
+            // C) fallback: Medellín sin zonas
+            const payload = { id_city: MEDELLIN_ID, page: apiPage, per_page: fetchSize };
+            const result = await postRequest("searchWasiProperties", payload);
+            if (result?.success) {
+                const arr = extractWasiArray(result.data);
+                const mapped = arr.map(mapWasiItem).filter(Boolean);
+                publishResults(itemsForPublish(mapped), {
+                    currentPage: page,
+                    totalPages: activeCreditFilter
+                        ? Math.max(1, Math.ceil(mapped.length / pagination.perPage))
+                        : (result.pagination?.total_pages || 1),
+                    totalItems: activeCreditFilter
+                        ? mapped.length
+                        : (result.pagination?.total_items || mapped.length),
+                });
+                setLastQuery({ page, cityIds: [MEDELLIN_ID], zones: [] });
+            } else {
+                setWasiError(new Error(result?.error || "Error desconocido"));
+            }
+        } catch (e) {
+            setWasiError(e);
+        } finally {
+            setWasiLoading(false);
+        }
+    };
+
+    const runCreditSearch = async ({ filter, searchSelection }) => {
+        const query = buildWasiSearchQuery({
+            allZones: searchSelection?.allZones,
+            groupKeys: searchSelection?.groupKeys || [],
+        });
+
+        setFilterApplied(true);
+        markResultsInHistory();
+        setSelectedGroups(query.groupLabels || query.groupKeysNorm);
+        setSelectedZones(query.zoneIds);
+        setCreditSearchSelection(searchSelection);
+        saveCreditSession({
+            results: loadCreditSession()?.results,
+            filter,
+            searchSelection,
+        });
+
+        await fetchWasiProperties({
+            page: 1,
+            cityIds: query.cityIds,
+            zones: query.zoneIds,
+            creditFilterOverride: filter,
+        });
+        setLastQuery({ page: 1, cityIds: query.cityIds, zones: query.zoneIds });
+
+        setTimeout(() => {
+            document.getElementById("wasi-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 150);
+    };
+
+    const handleCreditBudgetApply = async ({ filter, searchSelection, results }) => {
+        setCreditBudgetFilter(filter);
+        setCreditSimulatorBoot(null);
+        setCreditExpandOpen(false);
+
+        if (results) {
+            saveCreditSession({ results, filter, searchSelection });
+        }
+
+        if (!searchSelection) return;
+
+        track("simulator_apply_budget", {
+            action: "apply_credit_budget_filter_home",
+            ...searchSelection,
+            ...filter,
+        });
+
+        await runCreditSearch({ filter, searchSelection });
+    };
+
+    const clearCreditBudgetFilter = () => {
+        setCreditBudgetFilter(null);
+        setCreditSearchSelection(null);
+        setFilteredPool([]);
+        try {
+            const session = loadCreditSession();
+            if (session) {
+                saveCreditSession({ ...session, filter: null, searchSelection: null });
+            }
+        } catch {
+            // ignore
+        }
+        if (lastQuery) {
+            fetchWasiProperties({ ...lastQuery, creditFilterOverride: null });
+        }
+    };
+
+    const handleBackToSearch = (source = "button") => {
+        track("navigation", { action: "back_to_search", source });
+        setFilterApplied(false);
+        setWasiProps([]);
+        setWasiError(null);
+        setLastQuery(null);
+        setFilteredPool([]);
+        setPagination({
+            currentPage: 1,
+            perPage: PROPERTIES_PER_PAGE,
+            totalPages: 1,
+            totalItems: 0,
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        if (!filterApplied) return undefined;
+        const onPopState = () => handleBackToSearch("browser");
+        window.addEventListener("popstate", onPopState);
+        return () => window.removeEventListener("popstate", onPopState);
+    }, [filterApplied]);
+
+    const markResultsInHistory = () => {
+        try {
+            window.history.pushState({ monicaView: "results" }, "");
+        } catch {
+            // ignore
+        }
+    };
+
+    const handleExpandCreditFilter = () => {
+        setCreditExpandOpen(true);
+    };
+
+    // Ya no cargar propiedades al inicio
+    // useEffect(() => {
+    //     fetchWasiProperties({ page: 1, cityIds: [MEDELLIN_ID], zones: [] });
+    // }, []);
+
+    const handlePageChange = (newPage) => {
+        if (!lastQuery) return;
+        const { cityIds = [], zones = [] } = lastQuery;
+        track("pagination", {
+            action: "change_page",
+            from: pagination.currentPage,
+            to: newPage,
+            cityIds,
+            zones,
+            metadata: buildSearchMetadata({
+                groups: selectedGroups,
+                zones,
+                cityIds,
+                page: newPage,
+                queryType: "pagination",
+            }),
+        });
+
+        if (creditBudgetFilter && filteredPool.length > 0) {
+            const perPage = pagination.perPage;
+            const start = (newPage - 1) * perPage;
+            setWasiProps(filteredPool.slice(start, start + perPage));
+            setPagination((prev) => ({ ...prev, currentPage: newPage }));
+            document
+                .getElementById("wasi-section")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
+        }
+
+        fetchWasiProperties({ page: newPage, cityIds, zones });
+        document
+            .getElementById("wasi-section")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    // Callback desde RegionCityFilter NUEVO:
+    // onApply({ zones, groups })
+    const handleApplyRegionCity = async ({ zones = [], cityIds = [], groups = [] }) => {
+        const groupsNorm = Array.isArray(groups) ? groups.map(norm) : [];
+        const query = (cityIds?.length || zones?.length)
+            ? { groupKeysNorm: groupsNorm, cityIds, zoneIds: zones.map(String) }
+            : buildWasiSearchQuery({ groupKeys: groupsNorm });
+
+        setSelectedGroups(query.groupKeysNorm?.length ? query.groupKeysNorm : groupsNorm);
+        setSelectedZones(query.zoneIds || []);
+        setFilterApplied(true);
+        markResultsInHistory();
+
+        track("page_view", {
+            action: "vista_resultados",
+            groups: groupsNorm,
+            zones: query.zoneIds,
+            cityIds: query.cityIds,
+            metadata: buildSearchMetadata({
+                groups: groupsNorm,
+                zones: query.zoneIds,
+                page: 1,
+                queryType: "results_view",
+            }),
+        });
+
+        await fetchWasiProperties({
+            page: 1,
+            cityIds: query.cityIds || [],
+            zones: query.zoneIds || [],
+        });
+        setLastQuery({ page: 1, cityIds: query.cityIds || [], zones: query.zoneIds || [] });
+
+        if (isMobile) setMobileFiltersOpen(false);
+
+        setTimeout(() => {
+            document.getElementById("wasi-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+    };
+
+
+
+    // --- Responsive: detectar móvil y manejar drawer ---
+    useEffect(() => {
+        const mql = window.matchMedia("(max-width: 960px)");
+        const onChange = () => setIsMobile(mql.matches);
+        onChange();
+        mql.addEventListener?.("change", onChange);
+        return () => mql.removeEventListener?.("change", onChange);
+    }, []);
+
+    // Bloquear scroll del body cuando drawer abierto
+    useEffect(() => {
+        if (isMobile && mobileFiltersOpen) {
+            const prev = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+            return () => {
+                document.body.style.overflow = prev || "";
+            };
+        }
+    }, [isMobile, mobileFiltersOpen]);
+
+    // Cerrar con ESC
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === "Escape" && mobileFiltersOpen) setMobileFiltersOpen(false);
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [mobileFiltersOpen]);
+
+    const handleBackNavigation = () => {
+        if (window.history.state?.monicaView === "results") {
+            window.history.back();
+            return;
+        }
+        handleBackToSearch("button");
+    };
+
+    // Contador para badge del botón de filtros (móvil)
+    // const filtersCount = selectedGroups.length + (selectedZones.length ? 1 : 0);
+
+    return (
+        <>
+            <GlobalReset />
+            <div style={styles.page}>
+                <main style={{
+                    ...styles.main,
+                    paddingBottom: filterApplied ? (isMobile ? 88 : 48) : 0,
+                    paddingRight: filterApplied && !isMobile ? 72 : 0,
+                }}>
+                    {!filterApplied ? (
+                        <div className={landingStyles.hero}>
+                            <SiteTopBar editorial />
+                            <div
+                                className={`${landingStyles.content} profile-filter-responsive profile-filter-vertical ${landingStyles.panel}`}
+                            >
+                                    <ProfileHeader centered hideTitle introRing />
+                                    <RegionCityFilter
+                                        headingIntro
+                                        onApply={handleApplyRegionCity}
+                                        persistKey="rcf_selection_v1"
+                                        simulatorInitialData={simulatorBoot}
+                                        onSimulatorConsumed={() => setSimulatorBoot(null)}
+                                        creditSimulatorInitialData={creditSimulatorBoot}
+                                        onCreditSimulatorConsumed={() => setCreditSimulatorBoot(null)}
+                                        onCreditBudgetApply={handleCreditBudgetApply}
+                                        creditExpandOpen={creditExpandOpen}
+                                        onCreditExpandClose={() => setCreditExpandOpen(false)}
+                                        creditExpandData={creditExpandData}
+                                        style={{ pointerEvents: wasiLoading ? 'none' : 'auto', opacity: wasiLoading ? 0.45 : 1, filter: wasiLoading ? 'blur(2px)' : 'none', transition: 'opacity .4s, filter .4s', width: '100%' }}
+                                    />
+                                    <style>{`
+                                        .profile-filter-responsive {
+                                            box-sizing: border-box;
+                                            padding-left: 0 !important;
+                                            padding-right: 0 !important;
+                                            margin-left: auto !important;
+                                            margin-right: auto !important;
+                                        }
+                                        .profile-filter-vertical {
+                                            flex-direction: column !important;
+                                            align-items: stretch !important;
+                                        }
+                                        .profile-filter-vertical > *:not(:first-child) {
+                                            margin-top: 28px !important;
+                                        }
+                                        @media (max-width: 700px) {
+                                            .profile-filter-responsive {
+                                                padding-left: 0 !important;
+                                                padding-right: 0 !important;
+                                                max-width: 100% !important;
+                                            }
+                                        }
+                                        @media (max-width: 900px) {
+                                            .profile-filter-responsive {
+                                                padding-left: 0 !important;
+                                                padding-right: 0 !important;
+                                            }
+                                        }
+                                        .profile-filter-responsive-no-margin {
+                                            box-sizing: border-box;
+                                            margin-left: 0 !important;
+                                            margin-right: 0 !important;
+                                        }
+                                    `}</style>
+                                </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="filtered-profile-filter-wrap">
+                                <div className="filtered-profile-filter-inner">
+                                    <div className="filtered-back-col">
+                                        <SiteBackButton
+                                            onClick={handleBackNavigation}
+                                            label="Volver"
+                                        />
+                                    </div>
+                                    <div className="filtered-profile-col">
+                                        <ProfileHeader style={{ margin: 0, padding: 0 }} />
+                                    </div>
+                                    <div className="filtered-filter-col">
+                                        <RegionCityFilter
+                                            onApply={handleApplyRegionCity}
+                                            persistKey="rcf_selection_v1"
+                                            compact
+                                            simulatorInitialData={simulatorBoot}
+                                            onSimulatorConsumed={() => setSimulatorBoot(null)}
+                                            creditSimulatorInitialData={creditSimulatorBoot}
+                                            onCreditSimulatorConsumed={() => setCreditSimulatorBoot(null)}
+                                            onCreditBudgetApply={handleCreditBudgetApply}
+                                            creditExpandOpen={creditExpandOpen}
+                                            onCreditExpandClose={() => setCreditExpandOpen(false)}
+                                            creditExpandData={creditExpandData}
+                                            style={{ margin: 0, padding: 0, width: '100%' }}
+                                        />
+                                    </div>
+                                </div>
+                                <style>{`
+                                    .filtered-profile-filter-wrap {
+                                        width: 100vw;
+                                        position: relative;
+                                        left: 50%;
+                                        right: 50%;
+                                        margin-left: -50vw;
+                                        margin-right: -50vw;
+                                        background: var(--gradient-cloud-to-nude);
+                                        border-bottom: 1px solid var(--border-nude, #e6dace);
+                                    }
+                                    .filtered-profile-filter-inner {
+                                        display: flex;
+                                        flex-direction: row;
+                                        align-items: center;
+                                        justify-content: center;
+                                        background: transparent;
+                                        border: none !important;
+                                        padding: 20px clamp(20px, 5vw, 48px) 22px;
+                                        margin: 0 auto;
+                                        width: 100%;
+                                        max-width: 1240px;
+                                        min-width: 0;
+                                        box-sizing: border-box;
+                                        box-shadow: none !important;
+                                        gap: 24px;
+                                    }
+                                    .filtered-back-col {
+                                        flex: 0 0 auto;
+                                        display: flex;
+                                        align-items: center;
+                                    }
+                                    .filtered-profile-col {
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        flex: 0 0 auto;
+                                    }
+                                    .filtered-filter-col {
+                                        min-width: 280px;
+                                        max-width: 520px;
+                                        flex: 1 1 420px;
+                                        margin: 0;
+                                        padding: 0;
+                                        width: 100%;
+                                        display: flex;
+                                        justify-content: center;
+                                    }
+                                    @media (max-width: 700px) {
+                                        .filtered-profile-filter-inner {
+                                            flex-direction: column !important;
+                                            align-items: center !important;
+                                            gap: 16px !important;
+                                            padding-top: 18px !important;
+                                        }
+                                        .filtered-back-col {
+                                            width: 100%;
+                                            justify-content: center;
+                                        }
+                                        .filtered-filter-col {
+                                            margin-top: 0 !important;
+                                            justify-content: center !important;
+                                            max-width: 100% !important;
+                                            flex: 1 1 auto !important;
+                                        }
+                                    }
+                                `}</style>
+                            </div>
+                            {/* Resultados WASI sin .srGrid wrapper */}
+                            <div style={{
+                                ...bandStyles.wrap,
+                                width: '100%',
+                                maxWidth: '100vw',
+                                marginLeft: 0,
+                                marginRight: 0,
+                            }}>
+                                <Section
+                                    id="wasi-section"
+                                    eyebrow="Inventario disponible"
+                                    title={(
+                                        <>
+                                            Propiedades <span style={styles.em}>disponibles</span>
+                                        </>
+                                    )}
+                                    subtitle={
+                                        selectedGroups.length
+                                            ? `Explorando ${selectedGroups.join(", ")}`
+                                            : "Explora el inventario disponible"
+                                    }
+                                >
+                                    <CreditFilterBanner
+                                        filter={creditBudgetFilter}
+                                        zoneLabels={creditZoneLabels}
+                                        resultCount={!wasiLoading ? filteredCount : null}
+                                        onExpand={handleExpandCreditFilter}
+                                        onClear={clearCreditBudgetFilter}
+                                    />
+                                    {wasiLoading && (
+                                        <CardGrid
+                                            items={Array.from({ length: 4 }, (_, i) => i)}
+                                            render={(i) => <SkeletonCard key={i} />}
+                                        />
+                                    )}
+                                    {!wasiLoading && wasiError && (
+                                        <p style={{ color: "#b00020" }}>
+                                            Error: {wasiError.message || "No se pudo cargar la información"}
+                                        </p>
+                                    )}
+                                    {!wasiLoading && !wasiError && wasiProps.length === 0 && (
+                                        <div style={{ color: "#6e6259", padding: "24px 0", textAlign: "center" }}>
+                                            {creditBudgetFilter?.maxPropertyPrice ? (
+                                                <>
+                                                    <p style={{ margin: "0 0 16px" }}>
+                                                        {formatCreditFilterMessage(creditBudgetFilter)} — no hay coincidencias en esta selección.
+                                                    </p>
+                                                    <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleExpandCreditFilter}
+                                                            style={{
+                                                                border: "1.5px solid #d8a48f",
+                                                                background: "#fff",
+                                                                color: "#d8a48f",
+                                                                borderRadius: 999,
+                                                                padding: "12px 20px",
+                                                                fontWeight: 700,
+                                                                cursor: "pointer",
+                                                            }}
+                                                        >
+                                                            Ampliar zonas de búsqueda
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={clearCreditBudgetFilter}
+                                                            style={{
+                                                                border: "1px solid #c9b9a8",
+                                                                background: "#fff",
+                                                                color: "#6e6259",
+                                                                borderRadius: 999,
+                                                                padding: "12px 20px",
+                                                                fontWeight: 700,
+                                                                cursor: "pointer",
+                                                            }}
+                                                        >
+                                                            Quitar filtro de precio
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <p style={{ margin: 0 }}>No se encontraron propiedades para esta zona. Intenta con otra.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                    {!wasiLoading && !wasiError && wasiProps.length > 0 && (
+                                        <div className="fadeInResults">
+                                            <CardGrid
+                                                items={wasiProps}
+                                                render={(it) => (
+                                                    <WasiPropertyCard
+                                                        key={it.id || it.title}
+                                                        {...it}
+                                                        inBudget={!!creditBudgetFilter}
+                                                    />
+                                                )}
+                                            />
+                                            <Pagination
+                                                currentPage={pagination.currentPage}
+                                                totalPages={pagination.totalPages}
+                                                totalItems={pagination.totalItems}
+                                                perPage={pagination.perPage}
+                                                onPageChange={handlePageChange}
+                                            />
+                                        </div>
+                                    )}
+                                </Section>
+                            </div>
+                        </>
+                    )}
+                </main>
+
+                <AppVersion />
+                <FloatingSocial phone="573212080985" placement={filterApplied ? "side" : "bottom"} />
+            </div>
+        </>
+    );
+}

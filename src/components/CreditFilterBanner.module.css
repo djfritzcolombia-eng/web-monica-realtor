@@ -1,0 +1,115 @@
+.banner {
+    margin: 0 0 24px;
+    padding: 16px 20px;
+    border-radius: 2px;
+    background: var(--fill-nude-soft, #faf9f6);
+    border: 1px solid var(--border-subtle, #e8e4df);
+    color: var(--color-topo-deep, #3a332c);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16px;
+    justify-content: space-between;
+}
+
+.main {
+    flex: 1 1 240px;
+    min-width: 0;
+}
+
+.message {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.45;
+    color: #3a332c;
+}
+
+.zones {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #6e6259;
+    line-height: 1.4;
+}
+
+.count {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--color-emerald-muted, #2d5c54);
+    font-weight: 600;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: 0 0 auto;
+    align-items: center;
+}
+
+.btnWhatsApp,
+.btnExpand,
+.btnClear {
+    border-radius: 999px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    font-family: inherit;
+    border: none;
+    transition: opacity 0.15s;
+}
+
+.btnWhatsApp {
+    background: linear-gradient(
+        135deg,
+        var(--color-emerald-muted, #2d5c54) 0%,
+        var(--color-emerald, #00796b) 55%,
+        var(--color-emerald-mid, #1a8778) 100%
+    );
+    color: #fff;
+}
+
+.btnWhatsApp:hover {
+    opacity: 0.92;
+    background: var(--color-emerald-deep, #005a4f);
+}
+
+.btnExpand {
+    border: 1px solid var(--border-nude, #e6dace);
+    background: var(--surface-bg, #fff);
+    color: var(--color-topo-deep, #3a332c);
+}
+
+.btnExpand:hover {
+    background: var(--fill-nude, #f3ede6);
+}
+
+.btnClear {
+    border: 1px solid #c9b9a8;
+    background: #fff;
+    color: #6e6259;
+}
+
+.btnClear:hover {
+    background: #faf9f6;
+}
+
+@media (max-width: 640px) {
+    .banner {
+        flex-direction: column;
+    }
+
+    .actions {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .btnWhatsApp,
+    .btnExpand,
+    .btnClear {
+        width: 100%;
+        text-align: center;
+    }
+}

@@ -1,0 +1,73 @@
+/**
+ * Paleta Monica Fritz — minimal luxury
+ * PANTONE 11-4201 Cloud Dancer (blanco) · nude en rellenos · Emerald / Golden Olive acentos
+ */
+:root {
+    /* Pantone */
+    --color-cloud-dancer: #f0eeeb;
+    --color-dance-floor: var(--color-cloud-dancer);
+    --color-cloud-dancer-deep: #e8e4df;
+    --color-emerald: #00796b;
+    --color-emerald-light: #3d9a8c;
+    --color-emerald-mid: #1a8778;
+    --color-emerald-soft: rgba(0, 121, 107, 0.08);
+    --color-emerald-muted: #2d5c54;
+    --color-emerald-deep: #005a4f;
+    --color-emerald-line: rgba(0, 121, 107, 0.35);
+    --color-golden-olive: #8a9a5b;
+    --color-golden-olive-soft: rgba(138, 154, 91, 0.12);
+
+    /* Nude / warm neutrals — márgenes y rellenos */
+    --color-nude: #f3ede6;
+    --color-nude-soft: #faf9f6;
+    --color-nude-deep: #ebe3d8;
+    --color-beige: #e6dace;
+    --color-terracotta: #d8a48f;
+    --color-terracotta-deep: #c8937e;
+
+    /* Texto */
+    --color-topo: #6e6259;
+    --color-topo-deep: #3a332c;
+    --color-ivory: #faf9f6;
+
+    /* Superficies */
+    --page-bg: var(--color-cloud-dancer);
+    --surface-bg: #ffffff;
+    --fill-nude: var(--color-nude);
+    --fill-nude-soft: var(--color-nude-soft);
+    --border-subtle: var(--color-cloud-dancer-deep);
+    --border-nude: var(--color-beige);
+
+    --bar-bg: var(--color-emerald-muted);
+    --bar-text: var(--color-cloud-dancer);
+
+    --accent-primary: var(--color-emerald);
+    --accent-secondary: var(--color-terracotta);
+
+    --gradient-cloud-to-nude: linear-gradient(
+        180deg,
+        var(--color-dance-floor) 0%,
+        var(--color-nude-soft) 50%,
+        var(--color-nude) 82%,
+        var(--color-nude-deep) 100%
+    );
+
+    --gradient-page-continuous: linear-gradient(
+        180deg,
+        var(--color-dance-floor) 0%,
+        #f5f2ee 18%,
+        var(--color-nude-soft) 42%,
+        var(--color-nude) 68%,
+        var(--color-nude-deep) 88%,
+        var(--color-beige) 100%
+    );
+
+    --home-hero-image: url("https://luxe-cdn.b-cdn.net/dynamic/properties/1746135294350-1746135289044-470913365.webp");
+
+    --credit-simulator-image: url("https://media.admagazine.com/photos/659837406c65c90a3103ec67/2:3/w_2000,h_3000,c_limit/Brutalismo%20en%20Mexico%20-%20Casa%20Oyamel.jpg");
+
+    --radius-panel: 8px;
+
+    --border-hairline: 1px solid rgba(58, 51, 44, 0.1);
+    --letter-editorial: 0.18em;
+}

@@ -1,0 +1,121 @@
+/* src/pages/SRHome.module.css */
+
+.srGrid {
+    display: grid;
+    grid-template-columns: minmax(280px, 340px) 1fr;
+    gap: 36px;
+    background: #f3ede6;
+    border-radius: 22px;
+    padding: 32px 0 32px 0;
+    box-shadow: 0 8px 32px 0 rgba(214, 164, 143, 0.07);
+}
+
+@media (max-width: 960px) {
+    .srGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.srSidebar {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    background: #faf9f6;
+    border-radius: 18px;
+    border: 1.5px solid #e6dace;
+    box-shadow: 0 2px 12px 0 rgba(214, 164, 143, 0.06);
+    padding: 28px 22px 18px 22px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 960px) {
+    .srSidebar {
+        display: none;
+    }
+
+    .srMobileControls {
+        display: flex;
+    }
+}
+
+@media (min-width: 961px) {
+    .srMobileControls {
+        display: none;
+    }
+}
+
+.filtersDrawerBackdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+    z-index: 60;
+}
+
+.filtersDrawerBackdropOpen {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.filtersDrawerPanel {
+    position: fixed;
+    inset: 0 25% 0 0;
+    background: #fff;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 61;
+    overflow: auto;
+    padding: 16px;
+    box-shadow: 2px 0 18px rgba(0, 0, 0, .12);
+}
+
+.filtersDrawerPanelOpen {
+    transform: translateX(0);
+}
+
+@media (max-width: 520px) {
+    .filtersDrawerPanel {
+        inset: 0 15% 0 0;
+    }
+}
+
+.filtersDrawerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, .06);
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btnPrimary {
+    border-color: #1976d2;
+    color: #1976d2;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #1976d2;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+}
