@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /user/{userId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /sessions/{sessionId} {
+      allow create: if request.resource.data.sessionId == sessionId
+                    && request.resource.data.visitorId is string;
+      allow update: if resource.data.sessionId == sessionId;
+      allow read: if true;
+
+      match /events/{eventId} {
+        allow create: if request.resource.data.sessionId == sessionId
+                      && request.resource.data.type is string;
+        allow read: if true;
+        allow update, delete: if false;
+      }
+    }
+  }
+}

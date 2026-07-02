@@ -1,0 +1,57 @@
+.header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    background: none;
+    margin-top: 0;
+}
+
+.avatarWrap {
+    width: 108px;
+    height: 108px;
+    border-radius: 50%;
+    background: linear-gradient(120deg, #e6dace 60%, #faf9f6 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 24px 0 rgba(214, 164, 143, 0.18);
+    border: 4px solid #d8a48f;
+    outline: 2.5px solid #fff;
+    overflow: hidden;
+    margin-right: 8px;
+}
+
+.avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    border: 2.5px solid #faf9f6;
+}
+
+.info {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    justify-content: center;
+}
+
+.name {
+    font-family: var(--font-main);
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #3a332c;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+}
+
+.subtitle {
+    font-family: var(--font-alt);
+    font-size: 1.09rem;
+    font-weight: 700;
+    color: #a06a4a;
+    letter-spacing: 0.01em;
+    margin-top: 2px;
+}

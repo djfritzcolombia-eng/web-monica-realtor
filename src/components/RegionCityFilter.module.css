@@ -1,0 +1,41 @@
+/* src/components/RegionCityFilter.module.css */
+
+.selectWrapper {
+    position: relative;
+    width: 260px;
+    margin-bottom: 22px;
+}
+
+.customSelect {
+    width: 100%;
+    padding: 16px 44px 16px 18px;
+    font-size: 17px;
+    border-radius: 14px;
+    border: 1.5px solid #e6dace;
+    background: #faf9f6;
+    color: #6e6259;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
+    box-shadow: 0 2px 8px 0 rgba(214, 164, 143, 0.07);
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    outline: none;
+    transition: border-color .2s;
+    cursor: pointer;
+}
+
+.customSelect:focus {
+    border-color: #d8a48f;
+    box-shadow: 0 0 0 2px #e6dace44;
+}
+
+.arrow {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    width: 18px;
+    height: 18px;
+    fill: #d8a48f;
+}

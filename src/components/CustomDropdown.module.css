@@ -1,0 +1,100 @@
+/* src/components/CustomDropdown.module.css */
+
+
+.dropdown {
+    position: relative;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
+    box-sizing: border-box;
+}
+
+.toggle {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 16px 44px 16px 18px;
+    font-size: 17px;
+    border-radius: 14px;
+    border: 1.5px solid #e6dace;
+    background: #faf9f6;
+    color: #6e6259;
+    box-shadow: 0 2px 8px 0 rgba(214, 164, 143, 0.07);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: border-color .2s, box-shadow .2s;
+    outline: none;
+    gap: 10px;
+    box-sizing: border-box;
+}
+
+.toggle:focus,
+.toggle:hover {
+    border-color: #d8a48f;
+    box-shadow: 0 0 0 2px #e6dace44;
+}
+
+.arrow {
+    width: 18px;
+    height: 18px;
+    fill: #d8a48f;
+    flex-shrink: 0;
+}
+
+.menu {
+    position: absolute;
+    top: 110%;
+    left: 0;
+    min-width: 220px;
+    max-width: 100vw;
+    width: 100%;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px 0 rgba(214, 164, 143, 0.18), 0 1.5px 6px 0 #e6dace44;
+    border: 1.5px solid #e6dace;
+    margin: 0;
+    padding: 6px 0;
+    z-index: 1002;
+    list-style: none;
+    animation: fadeIn .18s cubic-bezier(.4, 0, .2, 1);
+    box-sizing: border-box;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 320px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.menu li {
+    padding: 13px 22px;
+    font-size: 16px;
+    color: #6e6259;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    border: none;
+    background: none;
+}
+
+.menu li:hover,
+.menu li:focus {
+    background: #e6dace;
+    color: #d8a48f;
+}
+
+.selected {
+    background: #d8a48f;
+    color: #fff;
+}

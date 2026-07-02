@@ -1,0 +1,68 @@
+/* src/components/SkeletonCard.module.css */
+.skeletonCard {
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(120deg, #f3ede6 60%, #a08c7a 100%);
+    border-radius: 26px;
+    box-shadow: 0 10px 32px 0 rgba(214, 164, 143, 0.15);
+    padding: 18px 18px 14px 18px;
+    width: 100%;
+    min-width: 0;
+    min-height: 340px;
+    margin: 0;
+    gap: 18px;
+    animation: pulse 1.2s infinite ease-in-out;
+}
+
+.skeletonImage {
+    width: 100%;
+    height: 120px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #e6dace 25%, #faf9f6 50%, #e6dace 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.3s infinite linear;
+}
+
+.skeletonContent {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.skeletonTitle {
+    width: 70%;
+    height: 18px;
+    border-radius: 6px;
+    background: #e6dace;
+    animation: shimmer 1.3s infinite linear;
+}
+
+.skeletonText {
+    width: 90%;
+    height: 13px;
+    border-radius: 5px;
+    background: #e6dace;
+    animation: shimmer 1.3s infinite linear;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.85;
+    }
+}
