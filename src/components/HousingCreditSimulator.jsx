@@ -295,7 +295,7 @@ export default function HousingCreditSimulator({
                     placeholder="16,15"
                 />
                 <p className={styles.hint}>
-                    Ingresa manualmente la tasa efectiva anual ofrecida por el banco. Referencial: {formatPercent(DEFAULT_ANNUAL_RATE_EA * 100)} EA.
+                    Ingresa manualmente la tasa efectiva anual de referencia. Valor sugerido: {formatPercent(DEFAULT_ANNUAL_RATE_EA * 100)} EA.
                 </p>
             </div>
         </>

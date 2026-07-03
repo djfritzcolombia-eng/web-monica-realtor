@@ -125,7 +125,7 @@ export default function CreditSimulationSummary({
                     <p>
                         Simulación referencial. Tasa de interés utilizada{" "}
                         <strong>{formatPercent(results.annualRateEa * 100)} EA</strong>.
-                        {" "}Los valores reales dependen de tu perfil crediticio, la entidad financiera y los seguros contratados.
+                        {" "}Los valores reales dependen de tu perfil crediticio, las condiciones del mercado y los seguros contratados.
                         Esta herramienta no constituye una oferta de crédito.
                     </p>
                 </div>

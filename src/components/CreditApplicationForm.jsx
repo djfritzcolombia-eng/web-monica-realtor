@@ -67,7 +67,6 @@ function buildInitialForm(simulation) {
         downPayment: "",
         termYears: "15",
         paymentPlan: "Cuota constante en pesos",
-        preferredBank: "",
         subsidy: "Sin subsidio",
         authorizeCreditBureaus: false,
         authorizeDataTreatment: false,
@@ -183,7 +182,7 @@ export default function CreditApplicationForm({
                 <h2 className={styles.heading}>Solicitud enviada</h2>
                 <p>
                     Recibimos tu solicitud de crédito hipotecario. Mónica Fritz revisará tu información
-                    y te contactará para adelantar el trámite con la entidad financiera.
+                    y te contactará para adelantar el trámite de financiación.
                 </p>
                 <p className={styles.hint}>Se envió un PDF al correo de la agencia con todos los datos.</p>
                 {onBack && (
@@ -199,8 +198,8 @@ export default function CreditApplicationForm({
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
             <h1 className={styles.heading}>Solicitud de crédito hipotecario</h1>
             <p className={styles.lead}>
-                Formato basado en solicitudes estándar de financiación de vivienda en Colombia
-                (Bancolombia F-3112, FNA y sector bancario). Los datos de tu simulación se incluyen en el PDF.
+                Formato de solicitud de crédito hipotecario para vivienda en Colombia.
+                Los datos de tu simulación se incluyen en el PDF.
             </p>
             {simulationHint && (
                 <p className={styles.simHint}>{simulationHint}</p>
@@ -385,10 +384,6 @@ export default function CreditApplicationForm({
                         </select>
                     </label>
                     <label className={styles.field}>
-                        <span>Entidad de preferencia</span>
-                        <input placeholder="Bancolombia, Davivienda, FNA…" value={form.preferredBank} onChange={(e) => update("preferredBank", e.target.value)} />
-                    </label>
-                    <label className={styles.field}>
                         <span>Subsidio</span>
                         <select value={form.subsidy} onChange={(e) => update("subsidy", e.target.value)}>
                             {SUBSIDY_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
@@ -418,7 +413,7 @@ export default function CreditApplicationForm({
                     />
                     <span>
                         Autorizo el tratamiento de mis datos personales por Mónica Fritz Realtor
-                        y entidades financieras aliadas para gestión de la solicitud.
+                        para gestión de la solicitud de crédito hipotecario.
                     </span>
                 </label>
                 <label className={styles.checkRow}>
@@ -429,7 +424,7 @@ export default function CreditApplicationForm({
                     />
                     <span>
                         Declaro que la información es veraz. Entiendo que documentos soporte
-                        (cédula, certificados laborales, extractos) se solicitarán en radicación bancaria.
+                        (cédula, certificados laborales, extractos) se solicitarán al radicar el crédito.
                     </span>
                 </label>
                 <label className={`${styles.field} ${styles.fieldFull}`}>

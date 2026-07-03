@@ -106,7 +106,6 @@ export function buildCreditApplicationPdf({ form, simulation }) {
     y = fieldRow(doc, y, "Cuota inicial", formatCOP(Number(form.downPayment) || 0));
     y = fieldRow(doc, y, "Plazo solicitado", `${form.termYears} años`);
     y = fieldRow(doc, y, "Plan de pagos", form.paymentPlan);
-    y = fieldRow(doc, y, "Entidad de preferencia", form.preferredBank || "Sin preferencia");
     y = fieldRow(doc, y, "Subsidio", form.subsidy);
 
     if (simulation) {
@@ -134,8 +133,8 @@ export function buildCreditApplicationPdf({ form, simulation }) {
     doc.setTextColor(110, 98, 89);
     const disclaimer = doc.splitTextToSize(
         "Documento generado desde monicafritzrealtor.com. Esta solicitud es un formato de recolección de información "
-        + "para gestión con entidades financieras aliadas. No constituye aprobación de crédito. "
-        + "La firma física y documentación soporte se solicitará en etapa de radicación bancaria.",
+        + "para gestión del trámite de crédito hipotecario. No constituye aprobación de crédito. "
+        + "La firma física y documentación soporte se solicitará en etapa de radicación del crédito.",
         180
     );
     doc.text(disclaimer, 14, y);

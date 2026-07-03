@@ -2,7 +2,7 @@ import { formatCOP, parseCurrencyInput, formatCurrencyInput } from "./notaryFees
 
 export { formatCOP, parseCurrencyInput, formatCurrencyInput };
 
-/** Tasa efectiva anual referencial (crédito vivienda en pesos, modalidad similar a Bancolombia). */
+/** Tasa efectiva anual referencial para crédito de vivienda en pesos. */
 export const DEFAULT_ANNUAL_RATE_EA = 0.1615;
 
 export const LOAN_PERCENT_OPTIONS = [
