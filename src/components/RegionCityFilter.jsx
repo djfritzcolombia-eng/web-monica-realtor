@@ -141,7 +141,7 @@ export default function RegionCityFilter({
     const desktopCompact = compact;
     const stacked = !compact && isNarrow;
     const dropdownHeight = desktopCompact
-        ? (isMobileResults ? 32 : 38)
+        ? (isMobileResults ? 44 : 38)
         : stacked ? CONTROL_HEIGHT : CONTROL_HEIGHT_HOME;
 
     const openNotary = () => {
@@ -157,7 +157,7 @@ export default function RegionCityFilter({
 
     return (
         <>
-            <div className={`${styles.wrap} ${compact ? styles.wrapCompact : ""} ${desktopCompact ? styles.wrapCompactDesktop : ""}`}>
+            <div className={`${styles.wrap} ${compact ? styles.wrapCompact : ""} ${desktopCompact ? styles.wrapCompactDesktop : ""} ${desktopCompact && isMobileResults ? styles.wrapCompactMobile : ""}`}>
                 {!compact && (
                     <>
                         <p className={styles.eyebrow}>Buscar propiedad</p>

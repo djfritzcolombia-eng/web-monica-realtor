@@ -22,105 +22,100 @@
     box-sizing: border-box;
 }
 
-/*
- * Grid con foto anclada al centro real del banner.
- * Volver (col 1) y filtros (col 3) comparten fila sin desplazar el perfil.
- */
+/* Móvil — columna: volver, foto centrada, controles cómodos abajo */
 .resultsHeroGrid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
     width: 100%;
-    column-gap: 0;
 }
 
 .resultsHeroLeft {
-    grid-column: 1;
-    grid-row: 1;
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    align-self: center;
-    z-index: 2;
-    min-width: 0;
-    max-width: calc(50% - 54px);
+    order: 1;
+    width: 100%;
 }
 
 .resultsHeroCenter {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    justify-self: center;
-    align-self: center;
-    z-index: 1;
-    width: max-content;
-    max-width: 108px;
     display: flex;
     justify-content: center;
-    pointer-events: none;
-}
-
-.resultsHeroCenter > * {
-    pointer-events: auto;
+    order: 2;
+    width: 100%;
 }
 
 .resultsHeroRight {
-    grid-column: 3;
-    grid-row: 1;
-    justify-self: end;
-    align-self: center;
-    z-index: 2;
+    order: 3;
     width: 100%;
+    max-width: min(100%, 400px);
+    margin: 0 auto;
     min-width: 0;
-    max-width: calc(50% - 54px);
 }
 
 @media (max-width: 900px) {
     .resultsBarInner {
-        padding: 16px 12px 18px;
+        padding: 14px 16px 18px;
     }
 
     .resultsHeroGrid {
-        column-gap: 0;
-    }
-
-    .resultsHeroLeft {
-        justify-content: flex-start;
-        max-width: calc(50% - 50px);
-    }
-
-    .resultsHeroCenter {
-        max-width: 100px;
-    }
-
-    .resultsHeroRight {
-        max-width: calc(50% - 44px);
+        gap: 12px;
     }
 }
 
+/* PC — foto fija al centro, volver izq y filtros der */
 @media (min-width: 901px) {
     .resultsBarInner {
         padding: 16px clamp(32px, 5vw, 72px) 20px;
     }
 
     .resultsHeroGrid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        column-gap: clamp(12px, 2vw, 24px);
         max-width: 1060px;
         margin: 0 auto;
-        column-gap: clamp(12px, 2vw, 24px);
+        gap: 0;
     }
 
     .resultsHeroLeft {
+        grid-column: 1;
+        grid-row: 1;
+        order: unset;
         justify-content: flex-end;
-        padding-right: 6px;
+        align-self: center;
+        z-index: 2;
         max-width: calc(50% - 72px);
+        padding-right: 6px;
     }
 
     .resultsHeroCenter {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        order: unset;
+        justify-self: center;
+        align-self: center;
+        z-index: 1;
+        width: max-content;
         max-width: 120px;
+        pointer-events: none;
+    }
+
+    .resultsHeroCenter > * {
+        pointer-events: auto;
     }
 
     .resultsHeroRight {
+        grid-column: 3;
+        grid-row: 1;
+        order: unset;
         justify-self: start;
+        align-self: center;
+        z-index: 2;
         max-width: min(340px, calc(50% - 72px));
+        margin: 0;
     }
 }
 

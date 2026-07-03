@@ -216,6 +216,47 @@
     width: 100%;
 }
 
+/* Móvil — controles amplios, legibles y fáciles de tocar */
+@media (max-width: 900px) {
+    .wrapCompactMobile {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .wrapCompactMobile .compactLabel {
+        text-align: center;
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        margin-bottom: 10px;
+    }
+
+    .wrapCompactMobile .desktopCompactLayout {
+        gap: 10px;
+        width: 100%;
+    }
+
+    .wrapCompactMobile .compactActions {
+        gap: 8px;
+    }
+
+    .wrapCompactMobile .compactActionsTop {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .wrapCompactMobile .compactActionsTop :global(.pillPrimary),
+    .wrapCompactMobile .compactActionsTop :global(.pillGhost),
+    .wrapCompactMobile .compactCreditBtn:global(.pillGhost) {
+        height: var(--btn-pill-height, 44px);
+        min-height: var(--btn-pill-height, 44px);
+        font-size: var(--btn-pill-font-size, 10px);
+        letter-spacing: var(--btn-pill-letter-spacing, 0.14em);
+        padding: 0 18px;
+        overflow: visible;
+        text-overflow: unset;
+    }
+}
+
 @media (min-width: 901px) {
     .wrapCompactDesktop .compactLabel {
         margin: 0 0 8px;
