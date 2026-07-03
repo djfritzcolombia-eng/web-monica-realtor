@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
     fetchSessionById,
     fetchSessionEvents,
@@ -230,6 +230,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
                 <div className={styles.headerActions}>
+                    <Link to="/admin/vender" className={styles.btnGhost}>Revisar ventas</Link>
                     <button type="button" className={styles.btnGhost} onClick={loadSessions}>
                         ↻ Actualizar
                     </button>

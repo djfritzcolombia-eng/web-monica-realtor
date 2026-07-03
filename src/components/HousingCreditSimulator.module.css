@@ -3,30 +3,45 @@
     inset: 0;
     z-index: 2100;
     overflow-y: auto;
+    overflow-x: hidden;
     animation: fadeIn 0.2s ease;
     isolation: isolate;
     background: var(--gradient-page-continuous);
 }
 
-.overlay::before {
-    content: "";
+.scrollBody {
+    position: relative;
+    min-height: 100%;
+    width: 100%;
+}
+
+.bgScroll {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 0;
     background-image: var(--credit-simulator-image);
     background-size: cover;
-    background-position: center 30%;
     background-repeat: no-repeat;
-    opacity: 0.2;
+    background-position: center var(--credit-bg-y, 50%);
+    opacity: 0.15;
     filter: grayscale(100%) contrast(0.92) brightness(1.12);
     mix-blend-mode: luminosity;
     pointer-events: none;
 }
 
-.overlay::after {
-    content: "";
+.overlayApplication .bgScroll {
+    opacity: 0.3;
+}
+
+.bgVeil {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 0;
     background: linear-gradient(
         180deg,
@@ -455,6 +470,37 @@
     background: #f3ede6;
 }
 
+.btnCreditApply {
+    padding: 0 26px;
+    border-radius: 999px;
+    border: 1px solid var(--color-topo-deep, #3a332c);
+    background: var(--color-topo-deep, #3a332c);
+    color: #fff;
+    font-weight: 500;
+    font-size: 11px;
+    font-family: var(--font-alt), sans-serif;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    height: 52px;
+    min-height: 52px;
+    min-width: 120px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.25;
+}
+
+.btnCreditApply:hover {
+    background: var(--color-emerald-muted, #2d5c54);
+    border-color: var(--color-emerald-muted, #2d5c54);
+}
+
 .shareFeedback {
     margin: 0 0 12px;
     padding: 10px 14px;
@@ -585,6 +631,7 @@
 
     .actions .btnSecondary,
     .actions .btnShare,
+    .actions .btnCreditApply,
     .actions .simulateBtn {
         width: 100%;
         max-width: none;

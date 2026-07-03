@@ -3,6 +3,7 @@ import AdminGuard from "../components/admin/AdminGuard";
 import AdminDashboard from "./AdminDashboard";
 import AdminLayout from "./AdminLayout";
 import AdminLogin from "./AdminLogin";
+import AdminSellListings from "./AdminSellListings";
 
 export default function AdminApp() {
     return (
@@ -14,6 +15,14 @@ export default function AdminApp() {
                     element={(
                         <AdminGuard>
                             <AdminDashboard />
+                        </AdminGuard>
+                    )}
+                />
+                <Route
+                    path="/vender"
+                    element={(
+                        <AdminGuard>
+                            <AdminSellListings />
                         </AdminGuard>
                     )}
                 />

@@ -36,6 +36,7 @@ import { postRequest } from "../services/api";
 import { buildSearchMetadata } from "../utils/eventMetadata";
 import "./SRHome.animations.css";
 import landingStyles from "../components/LandingHero.module.css";
+import resultsStyles from "./SRHome.module.css";
 
 const PROPERTIES_PER_PAGE = 18;
 const API_MAX_PER_PAGE = 100;
@@ -745,7 +746,7 @@ export default function SRHome() {
 
     // --- Responsive: detectar móvil y manejar drawer ---
     useEffect(() => {
-        const mql = window.matchMedia("(max-width: 960px)");
+        const mql = window.matchMedia("(max-width: 700px)");
         const onChange = () => setIsMobile(mql.matches);
         onChange();
         mql.addEventListener?.("change", onChange);
@@ -794,7 +795,7 @@ export default function SRHome() {
                 }}>
                     {!filterApplied ? (
                         <div className={landingStyles.hero}>
-                            <SiteTopBar editorial />
+                            <SiteTopBar showNav editorial />
                             <div
                                 className={`${landingStyles.content} profile-filter-responsive profile-filter-vertical ${landingStyles.panel}`}
                             >
@@ -851,18 +852,16 @@ export default function SRHome() {
                         </div>
                     ) : (
                         <>
-                            <div className="filtered-profile-filter-wrap">
-                                <div className="filtered-profile-filter-inner">
-                                    <div className="filtered-back-col">
+                            <SiteTopBar showNav />
+                            <div className={resultsStyles.resultsBar}>
+                                <div className={resultsStyles.resultsBarInner}>
+                                    <div className={resultsStyles.resultsBackRow}>
                                         <SiteBackButton
                                             onClick={handleBackNavigation}
                                             label="Volver"
                                         />
                                     </div>
-                                    <div className="filtered-profile-col">
-                                        <ProfileHeader style={{ margin: 0, padding: 0 }} />
-                                    </div>
-                                    <div className="filtered-filter-col">
+                                    <div className={resultsStyles.resultsFilterCol}>
                                         <RegionCityFilter
                                             onApply={handleApplyRegionCity}
                                             persistKey="rcf_selection_v1"
@@ -875,86 +874,11 @@ export default function SRHome() {
                                             creditExpandOpen={creditExpandOpen}
                                             onCreditExpandClose={() => setCreditExpandOpen(false)}
                                             creditExpandData={creditExpandData}
-                                            style={{ margin: 0, padding: 0, width: '100%' }}
                                         />
                                     </div>
                                 </div>
-                                <style>{`
-                                    .filtered-profile-filter-wrap {
-                                        width: 100vw;
-                                        position: relative;
-                                        left: 50%;
-                                        right: 50%;
-                                        margin-left: -50vw;
-                                        margin-right: -50vw;
-                                        background: var(--gradient-cloud-to-nude);
-                                        border-bottom: 1px solid var(--border-nude, #e6dace);
-                                    }
-                                    .filtered-profile-filter-inner {
-                                        display: flex;
-                                        flex-direction: row;
-                                        align-items: center;
-                                        justify-content: center;
-                                        background: transparent;
-                                        border: none !important;
-                                        padding: 20px clamp(20px, 5vw, 48px) 22px;
-                                        margin: 0 auto;
-                                        width: 100%;
-                                        max-width: 1240px;
-                                        min-width: 0;
-                                        box-sizing: border-box;
-                                        box-shadow: none !important;
-                                        gap: 24px;
-                                    }
-                                    .filtered-back-col {
-                                        flex: 0 0 auto;
-                                        display: flex;
-                                        align-items: center;
-                                    }
-                                    .filtered-profile-col {
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        flex: 0 0 auto;
-                                    }
-                                    .filtered-filter-col {
-                                        min-width: 280px;
-                                        max-width: 520px;
-                                        flex: 1 1 420px;
-                                        margin: 0;
-                                        padding: 0;
-                                        width: 100%;
-                                        display: flex;
-                                        justify-content: center;
-                                    }
-                                    @media (max-width: 700px) {
-                                        .filtered-profile-filter-inner {
-                                            flex-direction: column !important;
-                                            align-items: center !important;
-                                            gap: 16px !important;
-                                            padding-top: 18px !important;
-                                        }
-                                        .filtered-back-col {
-                                            width: 100%;
-                                            justify-content: center;
-                                        }
-                                        .filtered-filter-col {
-                                            margin-top: 0 !important;
-                                            justify-content: center !important;
-                                            max-width: 100% !important;
-                                            flex: 1 1 auto !important;
-                                        }
-                                    }
-                                `}</style>
                             </div>
-                            {/* Resultados WASI sin .srGrid wrapper */}
-                            <div style={{
-                                ...bandStyles.wrap,
-                                width: '100%',
-                                maxWidth: '100vw',
-                                marginLeft: 0,
-                                marginRight: 0,
-                            }}>
+                            <div className={resultsStyles.resultsSection} style={bandStyles.wrap}>
                                 <Section
                                     id="wasi-section"
                                     eyebrow="Inventario disponible"
@@ -1060,7 +984,7 @@ export default function SRHome() {
                 </main>
 
                 <AppVersion />
-                <FloatingSocial phone="573212080985" placement={filterApplied ? "side" : "bottom"} />
+                <FloatingSocial phone="573212080985" placement="bottom" />
             </div>
         </>
     );

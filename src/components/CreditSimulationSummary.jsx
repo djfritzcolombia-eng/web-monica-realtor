@@ -13,6 +13,7 @@ export default function CreditSimulationSummary({
     onBack,
     onShare,
     onApplyBudget,
+    onApplyCredit,
     onClose,
     shareFeedback,
 }) {
@@ -142,6 +143,15 @@ export default function CreditSimulationSummary({
                     {onShare && (
                         <button type="button" className={styles.btnShare} onClick={onShare}>
                             Compartir enlace
+                        </button>
+                    )}
+                    {onApplyCredit && (
+                        <button
+                            type="button"
+                            className={styles.btnCreditApply}
+                            onClick={onApplyCredit}
+                        >
+                            Formulario crédito hipotecario
                         </button>
                     )}
                     {onApplyBudget && (

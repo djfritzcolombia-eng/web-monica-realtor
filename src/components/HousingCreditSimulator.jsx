@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSessionTracking } from "../context/SessionTrackingContext";
 import {
@@ -26,6 +26,7 @@ import {
 } from "../utils/creditSimulatorDeepLink";
 import CreditSimulationSummary from "./CreditSimulationSummary";
 import CreditZonePicker from "./CreditZonePicker";
+import CreditApplicationForm from "./CreditApplicationForm";
 import styles from "./HousingCreditSimulator.module.css";
 
 const BIRTH_DATE_HINT_EXAMPLE = "08/03/1987";
@@ -34,11 +35,12 @@ const STEP_LABELS = {
     mode: "Tipo",
     form: "Datos",
     results: "Resultado",
+    application: "Solicitud",
     search_pick: "Zona",
 };
 
 function SimulatorStepBar({ step, onBack }) {
-    const steps = ["mode", "form", "results", "search_pick"];
+    const steps = ["mode", "form", "results", "application", "search_pick"];
     const idx = steps.indexOf(step);
     if (idx < 0) return null;
 
@@ -98,6 +100,32 @@ export default function HousingCreditSimulator({
     const [searchPickError, setSearchPickError] = useState("");
     const [searchPickOrigin, setSearchPickOrigin] = useState(null);
     const { track } = useSessionTracking();
+    const overlayRef = useRef(null);
+
+    useEffect(() => {
+        const el = overlayRef.current;
+        if (!el || !open) return undefined;
+
+        const syncBackgroundPosition = () => {
+            const { scrollTop, clientHeight, scrollHeight } = el;
+            const centerRatio = scrollHeight > clientHeight
+                ? ((scrollTop + clientHeight / 2) / scrollHeight) * 100
+                : 50;
+            el.style.setProperty("--credit-bg-y", `${centerRatio}%`);
+        };
+
+        syncBackgroundPosition();
+        el.addEventListener("scroll", syncBackgroundPosition, { passive: true });
+        const resizeObserver = typeof ResizeObserver !== "undefined"
+            ? new ResizeObserver(syncBackgroundPosition)
+            : null;
+        resizeObserver?.observe(el);
+
+        return () => {
+            el.removeEventListener("scroll", syncBackgroundPosition);
+            resizeObserver?.disconnect();
+        };
+    }, [open, step]);
 
     const propertyValue = parseCurrencyInput(propertyValueRaw);
     const loanAmountParsed = parseCurrencyInput(loanAmountRaw);
@@ -315,6 +343,10 @@ export default function HousingCreditSimulator({
             setSearchPickError("");
             return;
         }
+        if (step === "application") {
+            setStep("results");
+            return;
+        }
         if (step === "results") {
             setStep("form");
             setResults(null);
@@ -396,6 +428,17 @@ export default function HousingCreditSimulator({
         }
     };
 
+    const handleApplyCredit = () => {
+        if (!results) return;
+        setStep("application");
+        track("credit_application_open", {
+            action: "open_credit_application",
+            mode: results.mode,
+            propertyValue: results.propertyValue,
+            loanAmount: results.loanAmount,
+        });
+    };
+
     const handleApplyBudget = () => {
         if (!results) return;
         setSearchPickError("");
@@ -427,12 +470,20 @@ export default function HousingCreditSimulator({
     };
 
     const content = (
-        <div className={styles.overlay} role="presentation">
+        <div
+            ref={overlayRef}
+            className={`${styles.overlay} ${step === "application" ? styles.overlayApplication : ""}`}
+            role="presentation"
+        >
             <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Cerrar">
                 ×
             </button>
 
-            <div className={styles.container}>
+            <div className={styles.scrollBody}>
+                <div className={styles.bgScroll} aria-hidden />
+                <div className={styles.bgVeil} aria-hidden />
+
+                <div className={styles.container}>
                 {step !== "mode" && (
                     <SimulatorStepBar step={step} onBack={handleBack} />
                 )}
@@ -626,7 +677,19 @@ export default function HousingCreditSimulator({
                         onClose={onClose}
                         onShare={handleShare}
                         onApplyBudget={handleApplyBudget}
+                        onApplyCredit={handleApplyCredit}
                         shareFeedback={shareFeedback}
+                    />
+                )}
+
+                {step === "application" && results && (
+                    <CreditApplicationForm
+                        simulation={results}
+                        onBack={() => setStep("results")}
+                        onSuccess={() => track("credit_application_submit", {
+                            action: "submit_credit_application",
+                            mode: results.mode,
+                        })}
                     />
                 )}
 
@@ -654,6 +717,7 @@ export default function HousingCreditSimulator({
                         />
                     </>
                 )}
+                </div>
             </div>
         </div>
     );

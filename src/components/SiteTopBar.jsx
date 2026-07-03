@@ -1,32 +1,82 @@
+import { Link, useLocation } from "react-router-dom";
 import styles from "./SiteTopBar.module.css";
 
-export default function SiteTopBar({ showBack = false, onBack, backLabel = "Volver", editorial = false }) {
+export default function SiteTopBar({
+    showBack = false,
+    onBack,
+    backLabel = "Volver",
+    editorial = false,
+    showNav = false,
+}) {
+    const location = useLocation();
+    const onHome = location.pathname === "/";
+    const onSell = location.pathname.startsWith("/vender");
+
     if (editorial) {
         return (
-            <header className={styles.barEditorial}>
-                <h1 className={styles.brandLarge}>Mónica Fritz</h1>
-                <p className={styles.brandSubtitle}>Tu agente inmobiliaria</p>
-                {showBack && onBack && (
-                    <nav className={styles.navEditorial} aria-label="Navegación principal">
-                        <button
-                            type="button"
-                            className={styles.navLink}
-                            onClick={onBack}
-                        >
-                            <span aria-hidden>←</span> {backLabel}
-                        </button>
-                    </nav>
+            <header className={styles.editorialStack}>
+                {showNav && (
+                    <div className={styles.bar}>
+                        <Link to="/" className={styles.brandLink}>
+                            Mónica Fritz <span className={styles.brandAccent}>Realtor</span>
+                        </Link>
+                        <nav className={styles.nav} aria-label="Navegación principal">
+                            <Link
+                                to="/"
+                                className={`${styles.navLink} ${onHome ? styles.navLinkActive : ""}`}
+                            >
+                                Buscar
+                            </Link>
+                            <Link
+                                to="/vender"
+                                className={`${styles.navLink} ${onSell ? styles.navLinkActive : ""}`}
+                            >
+                                Vender
+                            </Link>
+                        </nav>
+                    </div>
                 )}
+                <div className={styles.barEditorial}>
+                    <h1 className={styles.brandLarge}>Mónica Fritz</h1>
+                    <p className={styles.brandSubtitle}>Tu agente inmobiliaria</p>
+                    {showBack && onBack && (
+                        <nav className={styles.navEditorial} aria-label="Navegación principal">
+                            <button
+                                type="button"
+                                className={styles.navLink}
+                                onClick={onBack}
+                            >
+                                <span aria-hidden>←</span> {backLabel}
+                            </button>
+                        </nav>
+                    )}
+                </div>
             </header>
         );
     }
 
     return (
         <header className={styles.bar}>
-            <p className={styles.brand}>
-                Mónica <span className={styles.brandAccent}>Fritz</span>
-            </p>
+            <Link to="/" className={styles.brandLink}>
+                Mónica Fritz <span className={styles.brandAccent}>Realtor</span>
+            </Link>
             <nav className={styles.nav} aria-label="Navegación principal">
+                {showNav && (
+                    <>
+                        <Link
+                            to="/"
+                            className={`${styles.navLink} ${onHome ? styles.navLinkActive : ""}`}
+                        >
+                            Buscar
+                        </Link>
+                        <Link
+                            to="/vender"
+                            className={`${styles.navLink} ${onSell ? styles.navLinkActive : ""}`}
+                        >
+                            Vender
+                        </Link>
+                    </>
+                )}
                 {showBack && onBack && (
                     <button
                         type="button"

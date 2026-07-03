@@ -124,21 +124,28 @@ export default function RegionCityFilter({
 
     const [isNarrow, setIsNarrow] = useState(false);
     useEffect(() => {
-        const check = () => setIsNarrow(window.innerWidth <= 480);
+        const check = () => setIsNarrow(window.innerWidth <= 700 || compact);
         check();
         window.addEventListener("resize", check);
         return () => window.removeEventListener("resize", check);
-    }, []);
+    }, [compact]);
 
     const modalFallback = null;
 
     return (
         <>
-            <div className={styles.wrap}>
-                <p className={styles.eyebrow}>Buscar propiedad</p>
-                <h2 className={`${styles.heading} ${headingIntro ? styles.headingIntro : ""}`}>
-                    ¿En qué sector <em>deseas vivir?</em>
-                </h2>
+            <div className={`${styles.wrap} ${compact ? styles.wrapCompact : ""}`}>
+                {!compact && (
+                    <>
+                        <p className={styles.eyebrow}>Buscar propiedad</p>
+                        <h2 className={`${styles.heading} ${headingIntro ? styles.headingIntro : ""}`}>
+                            ¿En qué sector <em>deseas vivir?</em>
+                        </h2>
+                    </>
+                )}
+                {compact && (
+                    <p className={styles.compactLabel}>Zona de búsqueda</p>
+                )}
                 {error && <div className={styles.error}>{error}</div>}
                 <div className={styles.stack}>
                     <div className={`${styles.searchRow} ${isNarrow ? styles.searchRowNarrow : ""}`}>
@@ -161,7 +168,7 @@ export default function RegionCityFilter({
                             Buscar propiedades
                         </button>
                     </div>
-                    <div className={styles.simulatorsRow}>
+                    <div className={`${styles.simulatorsRow} ${compact ? styles.simulatorsRowCompact : ""}`}>
                         <button
                             type="button"
                             onClick={() => {

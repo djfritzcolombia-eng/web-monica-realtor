@@ -19,5 +19,25 @@ service cloud.firestore {
         allow update, delete: if false;
       }
     }
+
+    match /sell_listings/{listingId} {
+      allow create: if request.resource.data.status == "pending"
+                    && request.resource.data.ownerName is string
+                    && request.resource.data.ownerEmail is string
+                    && request.resource.data.ownerPhone is string
+                    && request.resource.data.title is string
+                    && request.resource.data.price is number;
+      allow read: if true;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    match /credit_applications/{applicationId} {
+      allow create: if request.resource.data.email is string
+                    && request.resource.data.docNumber is string
+                    && request.resource.data.applicantName is string;
+      allow read: if true;
+      allow update, delete: if false;
+    }
   }
 }
