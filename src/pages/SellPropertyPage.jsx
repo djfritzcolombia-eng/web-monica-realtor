@@ -11,6 +11,7 @@ import {
     SELL_STATUS_LABELS,
     submitSellListing,
 } from "../services/sellListingService";
+import { MONICA_REALTOR_STORE } from "../constants/monicaRealtorStore";
 import { styles } from "../styles/styles";
 import stylesLocal from "./SellPropertyPage.module.css";
 
@@ -196,7 +197,7 @@ export default function SellPropertyPage() {
                 localStorage.setItem("mf_last_sell_listing_id", result.id);
                 setSuccess({
                     title: "Solicitud recibida",
-                    message: "Tu inmueble entró en revisión. Te contactaremos si necesitamos ajustes antes de publicarlo.",
+                    message: `Tu inmueble quedó guardado en ${MONICA_REALTOR_STORE.name}. Entró en revisión y te contactaremos si necesitamos ajustes antes de publicarlo.`,
                     id: result.id,
                 });
                 setForm(EMPTY_FORM);

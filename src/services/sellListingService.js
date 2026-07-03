@@ -7,6 +7,7 @@ import {
     orderBy,
     query,
     serverTimestamp,
+    setDoc,
     updateDoc,
     limit,
 } from "firebase/firestore";
@@ -16,6 +17,7 @@ import {
     uploadBytes,
 } from "firebase/storage";
 import { db, storage } from "../config/firebase";
+import { MONICA_REALTOR_STORE } from "../constants/monicaRealtorStore";
 
 export const SELL_LISTING_STATUSES = {
     pending: "pending",
@@ -33,7 +35,7 @@ export const SELL_STATUS_LABELS = {
     rejected: "Rechazado",
 };
 
-const COLLECTION = "sell_listings";
+const { collection: STORE_COLLECTION, legacyCollection: LEGACY_COLLECTION, storageRoot: STORAGE_ROOT } = MONICA_REALTOR_STORE;
 
 function sanitizeListingPayload(data) {
     return {
@@ -61,7 +63,56 @@ function sanitizeListingPayload(data) {
     };
 }
 
-export async function uploadSellListingPhotos(listingId, files) {
+function withStoreMetadata(payload) {
+    return {
+        ...payload,
+        storeId: MONICA_REALTOR_STORE.id,
+        storeName: MONICA_REALTOR_STORE.name,
+        source: "vender",
+    };
+}
+
+function mapListingDoc(snap, collectionName) {
+    return {
+        id: snap.id,
+        ...snap.data(),
+        _collection: collectionName,
+    };
+}
+
+async function ensureMonicaRealtorStore() {
+    const [configId, configParent] = MONICA_REALTOR_STORE.configDocPath.split("/");
+    await setDoc(
+        doc(db, configParent, configId),
+        {
+            storeId: MONICA_REALTOR_STORE.id,
+            name: MONICA_REALTOR_STORE.name,
+            description: "Solicitudes de propietarios desde la página Vender",
+            active: true,
+            version: 1,
+            updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
+}
+
+async function resolveListingRef(listingId) {
+    const primaryRef = doc(db, STORE_COLLECTION, listingId);
+    const primarySnap = await getDoc(primaryRef);
+    if (primarySnap.exists()) {
+        return { ref: primaryRef, snap: primarySnap, collectionName: STORE_COLLECTION };
+    }
+
+    const legacyRef = doc(db, LEGACY_COLLECTION, listingId);
+    const legacySnap = await getDoc(legacyRef);
+    if (legacySnap.exists()) {
+        return { ref: legacyRef, snap: legacySnap, collectionName: LEGACY_COLLECTION };
+    }
+
+    return null;
+}
+
+export async function uploadSellListingPhotos(listingId, files, storageRoot = STORAGE_ROOT) {
     const uploads = [];
 
     for (let index = 0; index < files.length; index += 1) {
@@ -71,7 +122,7 @@ export async function uploadSellListingPhotos(listingId, files) {
         const safeName = String(file.name || `foto-${index + 1}`)
             .replace(/[^\w.-]+/g, "-")
             .slice(0, 80);
-        const storagePath = `sell_listings/${listingId}/${Date.now()}-${index}-${safeName}`;
+        const storagePath = `${storageRoot}/${listingId}/${Date.now()}-${index}-${safeName}`;
         const storageRef = ref(storage, storagePath);
 
         await uploadBytes(storageRef, file, {
@@ -106,8 +157,10 @@ export async function submitSellListing(formData, photoFiles = []) {
         throw new Error("Agrega al menos una foto del inmueble.");
     }
 
-    const docRef = await addDoc(collection(db, COLLECTION), {
-        ...payload,
+    await ensureMonicaRealtorStore();
+
+    const docRef = await addDoc(collection(db, STORE_COLLECTION), {
+        ...withStoreMetadata(payload),
         status: SELL_LISTING_STATUSES.pending,
         photos: [],
         adminNotes: "",
@@ -119,33 +172,58 @@ export async function submitSellListing(formData, photoFiles = []) {
         updatedAt: serverTimestamp(),
     });
 
-    const photos = await uploadSellListingPhotos(docRef.id, photoFiles);
+    const photos = await uploadSellListingPhotos(docRef.id, photoFiles, STORAGE_ROOT);
 
     await updateDoc(docRef, {
         photos,
         updatedAt: serverTimestamp(),
     });
 
-    return { id: docRef.id, photos };
+    return { id: docRef.id, photos, storeName: MONICA_REALTOR_STORE.name };
 }
 
 export async function fetchSellListingById(listingId) {
-    const snap = await getDoc(doc(db, COLLECTION, listingId));
-    if (!snap.exists()) return null;
-    return { id: snap.id, ...snap.data() };
+    const resolved = await resolveListingRef(listingId);
+    if (!resolved) return null;
+    return mapListingDoc(resolved.snap, resolved.collectionName);
 }
 
 export async function fetchSellListings(max = 100) {
-    const q = query(
-        collection(db, COLLECTION),
-        orderBy("createdAt", "desc"),
-        limit(max)
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+    const [primarySnap, legacySnap] = await Promise.all([
+        getDocs(query(
+            collection(db, STORE_COLLECTION),
+            orderBy("createdAt", "desc"),
+            limit(max)
+        )),
+        getDocs(query(
+            collection(db, LEGACY_COLLECTION),
+            orderBy("createdAt", "desc"),
+            limit(max)
+        )),
+    ]);
+
+    const merged = new Map();
+
+    legacySnap.docs.forEach((item) => {
+        merged.set(item.id, mapListingDoc(item, LEGACY_COLLECTION));
+    });
+    primarySnap.docs.forEach((item) => {
+        merged.set(item.id, mapListingDoc(item, STORE_COLLECTION));
+    });
+
+    return [...merged.values()].sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+    });
 }
 
 export async function updateSellListingReview(listingId, update, adminUser = "") {
+    const resolved = await resolveListingRef(listingId);
+    if (!resolved) {
+        throw new Error("No encontramos la solicitud.");
+    }
+
     const payload = {
         ...update,
         updatedAt: serverTimestamp(),
@@ -163,23 +241,30 @@ export async function updateSellListingReview(listingId, update, adminUser = "")
         payload.publishedAt = serverTimestamp();
     }
 
-    await updateDoc(doc(db, COLLECTION, listingId), payload);
+    await updateDoc(resolved.ref, payload);
 }
 
 export async function resubmitSellListing(listingId, formData, photoFiles = [], existingPhotos = []) {
     const payload = sanitizeListingPayload(formData);
-    const listing = await fetchSellListingById(listingId);
+    const resolved = await resolveListingRef(listingId);
 
-    if (!listing) {
+    if (!resolved) {
         throw new Error("No encontramos tu solicitud.");
     }
+
+    const listing = mapListingDoc(resolved.snap, resolved.collectionName);
+
     if (listing.status !== SELL_LISTING_STATUSES.needs_revision) {
         throw new Error("Esta solicitud no está disponible para correcciones.");
     }
 
+    const storageRoot = resolved.collectionName === LEGACY_COLLECTION
+        ? MONICA_REALTOR_STORE.legacyStorageRoot
+        : STORAGE_ROOT;
+
     let photos = existingPhotos;
     if (photoFiles.length) {
-        const uploaded = await uploadSellListingPhotos(listingId, photoFiles);
+        const uploaded = await uploadSellListingPhotos(listingId, photoFiles, storageRoot);
         photos = [...existingPhotos, ...uploaded];
     }
 
@@ -187,8 +272,8 @@ export async function resubmitSellListing(listingId, formData, photoFiles = [], 
         throw new Error("Agrega al menos una foto del inmueble.");
     }
 
-    await updateDoc(doc(db, COLLECTION, listingId), {
-        ...payload,
+    await updateDoc(resolved.ref, {
+        ...withStoreMetadata(payload),
         photos,
         status: SELL_LISTING_STATUSES.pending,
         revisionNotes: "",

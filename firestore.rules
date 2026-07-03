@@ -20,13 +20,37 @@ service cloud.firestore {
       }
     }
 
-    match /sell_listings/{listingId} {
+    match /store_config/{storeId} {
+      allow read: if true;
+      allow create, update: if storeId == "monica-realtor"
+                            && request.resource.data.storeId == "monica-realtor"
+                            && request.resource.data.name is string;
+      allow delete: if false;
+    }
+
+    match /monica_realtor_store/{listingId} {
       allow create: if request.resource.data.status == "pending"
+                    && request.resource.data.storeId == "monica-realtor"
+                    && request.resource.data.storeName is string
                     && request.resource.data.ownerName is string
                     && request.resource.data.ownerEmail is string
                     && request.resource.data.ownerPhone is string
                     && request.resource.data.title is string
                     && request.resource.data.price is number;
+      allow read: if true;
+      allow update: if resource.data.status == "needs_revision"
+                    || request.resource.data.status in [
+                      "pending",
+                      "needs_revision",
+                      "approved",
+                      "published",
+                      "rejected"
+                    ];
+      allow delete: if false;
+    }
+
+    match /sell_listings/{listingId} {
+      allow create: if false;
       allow read: if true;
       allow update: if true;
       allow delete: if false;

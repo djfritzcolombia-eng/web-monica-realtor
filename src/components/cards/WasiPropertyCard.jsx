@@ -111,6 +111,15 @@ export default function WasiPropertyCard({
         setOpenModal(false);
     };
 
+    const openGallery = useCallback(() => {
+        if (!allImages.length) return;
+        track("property_view", {
+            action: "abrir_galeria",
+            metadata: propertyMeta(),
+        });
+        setOpenModal(true);
+    }, [allImages.length, propertyMeta, track]);
+
     // Paquete de detalles para el modal
     const details = {
         priceLabel,
@@ -136,7 +145,11 @@ export default function WasiPropertyCard({
         <div className={styles.card}>
             {/* Formato Pantone: imagen arriba, datos abajo */}
             <div className={styles.mediaFrame}>
-                <div className={styles.carouselContainer}>
+                <div
+                    className={styles.carouselContainer}
+                    onClick={openGallery}
+                    style={allImages.length > 0 ? { cursor: "pointer" } : undefined}
+                >
                     <ImageCarousel
                         images={allImages}
                         title={capitalize(title)}
@@ -159,12 +172,9 @@ export default function WasiPropertyCard({
                     </div>
                     {allImages.length > 0 && (
                         <button
-                            onClick={() => {
-                                track("property_view", {
-                                    action: "abrir_galeria",
-                                    metadata: propertyMeta(),
-                                });
-                                setOpenModal(true);
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openGallery();
                             }}
                             className={styles.expandButton}
                             aria-label="Ampliar"
@@ -176,7 +186,11 @@ export default function WasiPropertyCard({
                 </div>
             </div>
 
-            <div className={styles.infoPanel}>
+            <div
+                className={styles.infoPanel}
+                onClick={openGallery}
+                style={allImages.length > 0 ? { cursor: "pointer" } : undefined}
+            >
                 <h3 className={styles.title}>{capitalize(title) || "Propiedad"}</h3>
 
                 <div className={styles.content}>
@@ -226,7 +240,9 @@ export default function WasiPropertyCard({
                                     </div>
                                 )}
                             </div>
-                            <PropertyLocationMap address={address} zone={zone} city={city} />
+                            <div onClick={(e) => e.stopPropagation()} role="presentation">
+                                <PropertyLocationMap address={address} zone={zone} city={city} />
+                            </div>
                         </div>
                     )}
                 </div>
