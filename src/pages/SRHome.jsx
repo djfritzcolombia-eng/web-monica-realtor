@@ -719,6 +719,7 @@ export default function SRHome() {
             query: parsed.query,
             zones: zoneKeys,
             bedrooms: parsed.bedrooms,
+            stratum: parsed.stratum,
             propertyTypes: parsed.propertyTypes,
             keywords: parsed.keywords,
             metadata: buildSearchMetadata({
@@ -758,6 +759,7 @@ export default function SRHome() {
             query: parsed.query,
             zones: parsed.zones?.map((z) => z.key) || [],
             bedrooms: parsed.bedrooms,
+            stratum: parsed.stratum,
             propertyTypes: parsed.propertyTypes,
             keywords: parsed.keywords,
         });
@@ -919,6 +921,13 @@ export default function SRHome() {
         return () => window.removeEventListener("keydown", onKey);
     }, [mobileFiltersOpen]);
 
+    const handleBrandHome = useCallback((event) => {
+        if (filterApplied) {
+            event.preventDefault();
+            handleBackToSearch("brand");
+        }
+    }, [filterApplied]);
+
     const handleBackNavigation = () => {
         if (window.history.state?.monicaView === "results") {
             window.history.back();
@@ -940,7 +949,7 @@ export default function SRHome() {
                 }}>
                     {!filterApplied ? (
                         <div className={landingStyles.hero}>
-                            <SiteTopBar showNav editorial />
+                            <SiteTopBar showNav editorial onBrandClick={handleBrandHome} />
                             <div
                                 className={`${landingStyles.content} profile-filter-responsive profile-filter-vertical ${landingStyles.panel}`}
                             >
@@ -997,7 +1006,7 @@ export default function SRHome() {
                         </div>
                     ) : (
                         <>
-                            <SiteTopBar showNav />
+                            <SiteTopBar showNav onBrandClick={handleBrandHome} />
                             <div className={resultsStyles.resultsBar}>
                                 <div className={resultsStyles.resultsBarInner}>
                                     <div className={resultsStyles.resultsHeroGrid}>

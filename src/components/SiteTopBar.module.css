@@ -135,6 +135,16 @@
     box-sizing: border-box;
 }
 
+.brandLargeLink {
+    color: inherit;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.brandLargeLink:hover .brandLarge {
+    opacity: 0.88;
+}
+
 .brandLarge {
     font-family: var(--font-main), serif;
     font-size: clamp(1.85rem, 5vw, 2.35rem);

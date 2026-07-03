@@ -138,7 +138,20 @@ function parseBedrooms(queryNorm) {
     return null;
 }
 
-function stripMatchedTerms(queryNorm, { zones, propertyTypes, bedrooms }) {
+function parseStratum(queryNorm) {
+    const numeric = queryNorm.match(/estrato\s*[#.:]?\s*(\d+)/);
+    if (numeric) return Number(numeric[1]);
+
+    const words = {
+        uno: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6,
+    };
+    const wordMatch = queryNorm.match(/estrato\s+(uno|un|dos|tres|cuatro|cinco|seis)/);
+    if (wordMatch && words[wordMatch[1]] != null) return words[wordMatch[1]];
+
+    return null;
+}
+
+function stripMatchedTerms(queryNorm, { zones, propertyTypes, bedrooms, stratum }) {
     let rest = ` ${queryNorm} `;
 
     for (const zone of zones) {
@@ -160,6 +173,11 @@ function stripMatchedTerms(queryNorm, { zones, propertyTypes, bedrooms }) {
         rest = rest.replace(/(una|un|dos|tres|cuatro|cinco|seis)\s*(habitacion(?:es)?|hab(?:itacion(?:es)?)?|cuartos?|dormitorios?)/g, " ");
     }
 
+    if (stratum != null) {
+        rest = rest.replace(/estrato\s*[#.:]?\s*\d+/g, " ");
+        rest = rest.replace(/estrato\s+(uno|un|dos|tres|cuatro|cinco|seis)/g, " ");
+    }
+
     return rest
         .split(/\s+/)
         .map((t) => t.trim())
@@ -171,7 +189,7 @@ export function parseSiteSearch(rawQuery = "") {
     const queryNorm = norm(query);
 
     if (!queryNorm) {
-        return { action: "empty", query, queryNorm, zones: [], propertyTypes: [], bedrooms: null, keywords: [] };
+        return { action: "empty", query, queryNorm, zones: [], propertyTypes: [], bedrooms: null, stratum: null, keywords: [] };
     }
 
     for (const intent of NAV_INTENTS) {
@@ -183,6 +201,7 @@ export function parseSiteSearch(rawQuery = "") {
                 zones: [],
                 propertyTypes: [],
                 bedrooms: null,
+                stratum: null,
                 keywords: [],
             };
         }
@@ -191,7 +210,8 @@ export function parseSiteSearch(rawQuery = "") {
     const zones = matchZones(queryNorm);
     const propertyTypes = matchPropertyTypes(queryNorm);
     const bedrooms = parseBedrooms(queryNorm);
-    const keywords = stripMatchedTerms(queryNorm, { zones, propertyTypes, bedrooms });
+    const stratum = parseStratum(queryNorm);
+    const keywords = stripMatchedTerms(queryNorm, { zones, propertyTypes, bedrooms, stratum });
 
     return {
         action: "search_properties",
@@ -200,6 +220,7 @@ export function parseSiteSearch(rawQuery = "") {
         zones,
         propertyTypes,
         bedrooms,
+        stratum,
         keywords,
     };
 }
@@ -221,6 +242,7 @@ export function describeSiteSearchResult(parsed) {
             const parts = [];
             if (parsed.zones.length) parts.push(parsed.zones.map((z) => z.label).join(", "));
             if (parsed.bedrooms != null) parts.push(`${parsed.bedrooms} habitaciones`);
+            if (parsed.stratum != null) parts.push(`estrato ${parsed.stratum}`);
             if (parsed.propertyTypes.length) parts.push(parsed.propertyTypes.join(", "));
             if (parsed.keywords.length) parts.push(parsed.keywords.join(" "));
             return parts.length ? `Buscando: ${parts.join(" · ")}` : `Buscando: ${parsed.query}`;
