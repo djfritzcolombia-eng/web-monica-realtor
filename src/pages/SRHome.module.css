@@ -22,21 +22,22 @@
     box-sizing: border-box;
 }
 
-/* Móvil — columna: volver, foto centrada, controles cómodos abajo */
+/* Móvil — columna centrada: volver + foto + controles */
 .resultsHeroGrid {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 14px;
+    align-items: center;
+    gap: 0;
     width: 100%;
 }
 
 .resultsHeroLeft {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     order: 1;
     width: 100%;
+    margin-bottom: 10px;
 }
 
 .resultsHeroCenter {
@@ -44,6 +45,7 @@
     justify-content: center;
     order: 2;
     width: 100%;
+    margin-bottom: 14px;
 }
 
 .resultsHeroRight {
@@ -57,10 +59,6 @@
 @media (max-width: 900px) {
     .resultsBarInner {
         padding: 14px 16px 18px;
-    }
-
-    .resultsHeroGrid {
-        gap: 12px;
     }
 }
 
