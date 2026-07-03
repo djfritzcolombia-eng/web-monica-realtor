@@ -22,36 +22,50 @@
     box-sizing: border-box;
 }
 
-/* Móvil — columna centrada: volver + foto + controles */
+/* Móvil — volver a la izquierda (centro vertical de la foto), foto al centro, controles abajo */
 .resultsHeroGrid {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
     align-items: center;
-    gap: 0;
     width: 100%;
+    row-gap: 14px;
 }
 
 .resultsHeroLeft {
+    grid-column: 1;
+    grid-row: 1;
     display: flex;
     align-items: center;
-    justify-content: center;
-    order: 1;
-    width: 100%;
-    margin-bottom: 10px;
+    justify-content: flex-start;
+    align-self: center;
+    z-index: 2;
+    width: auto;
+    min-width: 0;
 }
 
 .resultsHeroCenter {
+    grid-column: 1 / -1;
+    grid-row: 1;
     display: flex;
     justify-content: center;
-    order: 2;
-    width: 100%;
-    margin-bottom: 14px;
+    justify-self: center;
+    align-self: center;
+    z-index: 1;
+    width: max-content;
+    pointer-events: none;
+}
+
+.resultsHeroCenter > * {
+    pointer-events: auto;
 }
 
 .resultsHeroRight {
-    order: 3;
+    grid-column: 1 / -1;
+    grid-row: 2;
     width: 100%;
     max-width: min(100%, 400px);
+    justify-self: center;
     margin: 0 auto;
     min-width: 0;
 }
