@@ -24,7 +24,19 @@
     border-bottom-color: var(--color-topo-deep, #3a332c);
 }
 
-.arrow {
-    font-size: 14px;
-    line-height: 1;
+.backBtnCompact {
+    /* base — overridden on móvil */
+}
+
+@media (max-width: 900px) {
+    .backBtnCompact {
+        font-size: 9px;
+        letter-spacing: 0.1em;
+        padding: 2px 0;
+        white-space: nowrap;
+    }
+
+    .backBtnCompact .arrow {
+        font-size: 12px;
+    }
 }

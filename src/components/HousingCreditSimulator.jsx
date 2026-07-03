@@ -186,6 +186,31 @@ export default function HousingCreditSimulator({
         if (!open) return;
         setShareFeedback("");
 
+        if (initialData?.openApplication) {
+            setResults({
+                mode: "by_property",
+                propertyValue: 0,
+                loanAmount: 0,
+                totalMonthly: 0,
+                monthlyPayment: 0,
+                annualRateEa: 0.1615,
+                propertyType: "NO_VIS",
+                termYears: 15,
+            });
+            setStep("application");
+            setMode("by_property");
+            setError("");
+            return;
+        }
+
+        if (initialData?.openSimulator) {
+            setStep("mode");
+            setMode(null);
+            setResults(null);
+            setError("");
+            return;
+        }
+
         if (zonePickOnly && initialData?.results) {
             setResults(initialData.results);
             setStep("search_pick");
@@ -685,7 +710,7 @@ export default function HousingCreditSimulator({
                 {step === "application" && results && (
                     <CreditApplicationForm
                         simulation={results}
-                        onBack={() => setStep("results")}
+                        onBack={() => setStep(initialData?.openApplication ? "mode" : "results")}
                         onSuccess={() => track("credit_application_submit", {
                             action: "submit_credit_application",
                             mode: results.mode,

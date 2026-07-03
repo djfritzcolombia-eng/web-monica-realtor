@@ -68,6 +68,10 @@
 
     --radius-panel: 8px;
 
+    --btn-pill-height: 44px;
+    --btn-pill-font-size: 10px;
+    --btn-pill-letter-spacing: 0.14em;
+
     --border-hairline: 1px solid rgba(58, 51, 44, 0.1);
     --letter-editorial: 0.18em;
 }

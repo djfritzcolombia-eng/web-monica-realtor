@@ -11,9 +11,9 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 18px;
+    gap: 12px;
     width: 100%;
-    padding: 8px 0 4px;
+    padding: 0;
 }
 
 .headerCentered .avatarShell {
@@ -22,6 +22,33 @@
 
 .headerCentered .info {
     align-items: center;
+}
+
+.headerCompact {
+    /* activo en hero de resultados */
+}
+
+@media (max-width: 900px) {
+    .headerCompact {
+        gap: 8px;
+    }
+
+    .avatarShellCompact {
+        width: 96px;
+        height: 96px;
+    }
+
+    .avatarWrapCompact {
+        width: 96px;
+        height: 96px;
+    }
+
+    .headerCompact .handle {
+        font-size: 10px;
+        letter-spacing: 0.02em;
+        max-width: 108px;
+        line-height: 1.25;
+    }
 }
 
 .avatarShell {
@@ -145,9 +172,9 @@
     font-size: 12px;
     font-weight: 500;
     color: var(--color-topo, #6e6259);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     margin: 0;
-    opacity: 0.85;
+    opacity: 0.9;
 }
 
 .subtitle {

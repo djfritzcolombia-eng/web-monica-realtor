@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import SiteSearchBar from "./SiteSearchBar";
 import styles from "./SiteTopBar.module.css";
 
 export default function SiteTopBar({
@@ -9,8 +10,22 @@ export default function SiteTopBar({
     showNav = false,
 }) {
     const location = useLocation();
+    const [searchParams] = useSearchParams();
     const onHome = location.pathname === "/";
     const onSell = location.pathname.startsWith("/vender");
+    const initialQuery = searchParams.get("q") || "";
+
+    const nav = showNav ? (
+        <nav className={styles.nav} aria-label="Navegación principal">
+            <SiteSearchBar initialQuery={onHome ? initialQuery : ""} />
+            <Link
+                to="/vender"
+                className={`${styles.navLink} ${onSell ? styles.navLinkActive : ""}`}
+            >
+                Vender
+            </Link>
+        </nav>
+    ) : null;
 
     if (editorial) {
         return (
@@ -20,20 +35,7 @@ export default function SiteTopBar({
                         <Link to="/" className={styles.brandLink}>
                             Mónica Fritz <span className={styles.brandAccent}>Realtor</span>
                         </Link>
-                        <nav className={styles.nav} aria-label="Navegación principal">
-                            <Link
-                                to="/"
-                                className={`${styles.navLink} ${onHome ? styles.navLinkActive : ""}`}
-                            >
-                                Buscar
-                            </Link>
-                            <Link
-                                to="/vender"
-                                className={`${styles.navLink} ${onSell ? styles.navLinkActive : ""}`}
-                            >
-                                Vender
-                            </Link>
-                        </nav>
+                        {nav}
                     </div>
                 )}
                 <div className={styles.barEditorial}>
@@ -63,12 +65,7 @@ export default function SiteTopBar({
             <nav className={styles.nav} aria-label="Navegación principal">
                 {showNav && (
                     <>
-                        <Link
-                            to="/"
-                            className={`${styles.navLink} ${onHome ? styles.navLinkActive : ""}`}
-                        >
-                            Buscar
-                        </Link>
+                        <SiteSearchBar initialQuery={onHome ? initialQuery : ""} />
                         <Link
                             to="/vender"
                             className={`${styles.navLink} ${onSell ? styles.navLinkActive : ""}`}

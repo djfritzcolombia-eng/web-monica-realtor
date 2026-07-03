@@ -1,0 +1,84 @@
+/* Botones editoriales unificados — pill sobrio, mismo alto y ancho en columna */
+
+.pillPrimary {
+    padding: 0 22px;
+    border-radius: 999px;
+    border: 1px solid var(--color-topo-deep, #3a332c);
+    background: var(--color-topo-deep, #3a332c);
+    color: #fff;
+    font-weight: 500;
+    font-size: var(--btn-pill-font-size, 10px);
+    font-family: var(--font-alt), sans-serif;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    height: var(--btn-pill-height, 44px);
+    min-height: var(--btn-pill-height, 44px);
+    letter-spacing: var(--btn-pill-letter-spacing, 0.14em);
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    white-space: nowrap;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.pillPrimary:disabled {
+    background: transparent;
+    border-color: var(--border-nude, #e6dace);
+    color: var(--color-topo, #6e6259);
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.pillPrimary:not(:disabled):hover {
+    background: var(--color-emerald-muted, #2d5c54);
+    border-color: var(--color-emerald-muted, #2d5c54);
+}
+
+.pillGhost {
+    border-radius: 999px;
+    border: 1px solid rgba(58, 51, 44, 0.22);
+    background: rgba(255, 255, 255, 0.35);
+    color: var(--color-topo-deep, #3a332c);
+    padding: 0 22px;
+    height: var(--btn-pill-height, 44px);
+    min-height: var(--btn-pill-height, 44px);
+    font-size: var(--btn-pill-font-size, 10px);
+    font-weight: 500;
+    letter-spacing: var(--btn-pill-letter-spacing, 0.14em);
+    text-transform: uppercase;
+    font-family: var(--font-alt), sans-serif;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    white-space: nowrap;
+    line-height: 1.2;
+    text-align: center;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.pillGhost:hover {
+    background: rgba(255, 255, 255, 0.72);
+    border-color: var(--color-emerald-muted, #2d5c54);
+    color: var(--color-emerald-muted, #2d5c54);
+}
+
+.pillFull {
+    width: 100%;
+    max-width: 100%;
+}
+
+.pillStack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+}

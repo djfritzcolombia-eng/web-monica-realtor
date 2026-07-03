@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ImageCarousel from "./ImageCarousel";
+import PropertyLocationMap from "./PropertyLocationMap";
+import { getExteriorFeatureEmoji, getInteriorFeatureEmoji } from "../utils/featureEmoji";
 
 const COLORS = {
     beige: "#e6dace",
@@ -357,9 +359,18 @@ function FullscreenGalleryModal({
                                 {title || "Propiedad"}
                             </div>
                             {(zone || city || address) && (
-                                <div style={{ fontSize: 13, opacity: 0.85 }}>
+                                <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 10 }}>
                                     {[zone, city].filter(Boolean).join(" — ")}
                                     {address ? ` · ${address}` : ""}
+                                </div>
+                            )}
+                            {(zone || city || address) && (
+                                <div style={{ marginBottom: 12 }}>
+                                    <PropertyLocationMap
+                                        address={address}
+                                        zone={zone}
+                                        city={city}
+                                    />
                                 </div>
                             )}
                         </div>
@@ -472,10 +483,10 @@ function FullscreenGalleryModal({
                                 <div style={groupTitleStyle}>Características</div>
                                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                                     {featuresInt?.map((f, i) => (
-                                        <Chip key={`mi-${i}`}>🏠 {f}</Chip>
+                                        <Chip key={`mi-${i}`}>{getInteriorFeatureEmoji(f)} {f}</Chip>
                                     ))}
                                     {featuresExt?.map((f, i) => (
-                                        <Chip key={`me-${i}`}>🌳 {f}</Chip>
+                                        <Chip key={`me-${i}`}>{getExteriorFeatureEmoji(f)} {f}</Chip>
                                     ))}
                                 </div>
                             </div>

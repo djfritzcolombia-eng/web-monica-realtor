@@ -10,11 +10,20 @@
     box-sizing: border-box;
 }
 
+.toggle span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+    text-align: left;
+}
+
 .toggle {
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    padding: 16px 44px 16px 22px;
+    padding: 0 40px 0 18px;
     font-size: 14px;
     border-radius: 999px;
     border: 1px solid rgba(58, 51, 44, 0.14);

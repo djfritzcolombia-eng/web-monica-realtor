@@ -13,7 +13,8 @@ const norm = (s = "") =>
 
 export const DISPLAY_ORDER = CREDIT_SEARCH_ZONES.map((z) => z.label);
 
-const CONTROL_HEIGHT = 52;
+const CONTROL_HEIGHT = 44;
+const CONTROL_HEIGHT_HOME = 44;
 const CALC_LABEL = "Simulador de gastos notariales";
 const CREDIT_LABEL = "Simulador crédito hipotecario";
 
@@ -124,17 +125,34 @@ export default function RegionCityFilter({
 
     const [isNarrow, setIsNarrow] = useState(false);
     useEffect(() => {
-        const check = () => setIsNarrow(window.innerWidth <= 700 || compact);
+        const check = () => {
+            setIsNarrow(window.innerWidth <= 700);
+        };
         check();
         window.addEventListener("resize", check);
         return () => window.removeEventListener("resize", check);
-    }, [compact]);
+    }, []);
 
     const modalFallback = null;
 
+    const desktopCompact = compact;
+    const stacked = !compact && isNarrow;
+    const dropdownHeight = desktopCompact ? 38 : stacked ? CONTROL_HEIGHT : CONTROL_HEIGHT_HOME;
+
+    const openNotary = () => {
+        setActiveSimulatorData(null);
+        setCalculatorOpen(true);
+        track("modal_open", { action: "open_simulator", modal: "notary_fees_calculator" });
+    };
+
+    const openCredit = () => {
+        setCreditSimulatorOpen(true);
+        track("modal_open", { action: "open_credit_simulator", modal: "housing_credit_simulator" });
+    };
+
     return (
         <>
-            <div className={`${styles.wrap} ${compact ? styles.wrapCompact : ""}`}>
+            <div className={`${styles.wrap} ${compact ? styles.wrapCompact : ""} ${desktopCompact ? styles.wrapCompactDesktop : ""}`}>
                 {!compact && (
                     <>
                         <p className={styles.eyebrow}>Buscar propiedad</p>
@@ -147,36 +165,78 @@ export default function RegionCityFilter({
                     <p className={styles.compactLabel}>Zona de búsqueda</p>
                 )}
                 {error && <div className={styles.error}>{error}</div>}
-                <div className={styles.stack}>
-                    <div className={`${styles.searchRow} ${isNarrow ? styles.searchRowNarrow : ""}`}>
+                {desktopCompact ? (
+                    <div className={styles.desktopCompactLayout}>
+                        <div className={styles.desktopDropdown}>
+                            <CustomDropdown
+                                options={DISPLAY_ORDER.map((label) => ({ label, value: label }))}
+                                value={selectedKeys[0] || ""}
+                                onChange={handleSelect}
+                                placeholder="Selecciona una zona..."
+                                height={dropdownHeight}
+                                compact
+                            />
+                        </div>
+                        <div className={styles.compactActions}>
+                            <div className={styles.compactActionsTop}>
+                                <button
+                                    type="button"
+                                    onClick={handleApply}
+                                    disabled={!canApply}
+                                    className="pillPrimary"
+                                    title={canApply ? "Buscar propiedades" : "Selecciona una zona"}
+                                >
+                                    Buscar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={openNotary}
+                                    className="pillGhost"
+                                    title={CALC_LABEL}
+                                    aria-label={`Abrir ${CALC_LABEL}`}
+                                >
+                                    Gastos notariales
+                                </button>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={openCredit}
+                                className={`pillGhost ${styles.compactCreditBtn}`}
+                                title={CREDIT_LABEL}
+                                aria-label={`Abrir ${CREDIT_LABEL}`}
+                            >
+                                Crédito hipotecario
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                <div className={`${styles.stack} ${stacked ? "pillStack" : ""}`}>
+                    <div className={`${styles.searchRow} ${stacked ? styles.searchRowNarrow : ""} ${!compact && !stacked ? styles.searchRowHome : ""}`}>
                         <div className={styles.dropdownWrap}>
                             <CustomDropdown
                                 options={DISPLAY_ORDER.map((label) => ({ label, value: label }))}
                                 value={selectedKeys[0] || ""}
                                 onChange={handleSelect}
                                 placeholder="Selecciona una zona..."
-                                height={CONTROL_HEIGHT}
+                                height={dropdownHeight}
+                                compact={false}
                             />
                         </div>
                         <button
                             type="button"
                             onClick={handleApply}
                             disabled={!canApply}
-                            className={`${styles.pillPrimary} ${isNarrow ? styles.pillPrimaryFull : ""}`}
+                            className={`pillPrimary ${stacked ? "pillFull" : ""}`}
                             title={canApply ? "Buscar propiedades" : "Selecciona una zona"}
                         >
                             Buscar propiedades
                         </button>
                     </div>
-                    <div className={`${styles.simulatorsRow} ${compact ? styles.simulatorsRowCompact : ""}`}>
+                    <div className={`${styles.simulatorsRow} ${stacked ? styles.simulatorsRowStacked : ""}`}>
                         <button
                             type="button"
-                            onClick={() => {
-                                setActiveSimulatorData(null);
-                                setCalculatorOpen(true);
-                                track("modal_open", { action: "open_simulator", modal: "notary_fees_calculator" });
-                            }}
-                            className={`${styles.pillGhost} ${isNarrow ? styles.pillGhostFull : ""}`}
+                            onClick={openNotary}
+                            className={`pillGhost ${stacked ? "pillFull" : ""}`}
                             title={CALC_LABEL}
                             aria-label={`Abrir ${CALC_LABEL}`}
                         >
@@ -184,11 +244,8 @@ export default function RegionCityFilter({
                         </button>
                         <button
                             type="button"
-                            onClick={() => {
-                                setCreditSimulatorOpen(true);
-                                track("modal_open", { action: "open_credit_simulator", modal: "housing_credit_simulator" });
-                            }}
-                            className={`${styles.pillGhost} ${isNarrow ? styles.pillGhostFull : ""}`}
+                            onClick={openCredit}
+                            className={`pillGhost ${stacked ? "pillFull" : ""}`}
                             title={CREDIT_LABEL}
                             aria-label={`Abrir ${CREDIT_LABEL}`}
                         >
@@ -196,6 +253,7 @@ export default function RegionCityFilter({
                         </button>
                     </div>
                 </div>
+                )}
             </div>
             <Suspense fallback={modalFallback}>
                 <NotaryFeesCalculatorModal

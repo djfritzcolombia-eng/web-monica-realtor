@@ -2,7 +2,14 @@
 import React, { useRef, useState, useEffect } from "react";
 import styles from "./CustomDropdown.module.css";
 
-export default function CustomDropdown({ options, value, onChange, placeholder = "Selecciona una zona...", height = 52 }) {
+export default function CustomDropdown({
+    options,
+    value,
+    onChange,
+    placeholder = "Selecciona una zona...",
+    height = 52,
+    compact = false,
+}) {
     const [open, setOpen] = useState(false);
     const ref = useRef();
 
@@ -21,7 +28,13 @@ export default function CustomDropdown({ options, value, onChange, placeholder =
             <button
                 type="button"
                 className={styles.toggle}
-                style={{ height, minHeight: height, padding: "0 44px 0 18px", borderRadius: 10, fontSize: 16 }}
+                style={{
+                    height,
+                    minHeight: height,
+                    padding: compact ? "0 32px 0 14px" : "0 40px 0 18px",
+                    borderRadius: 999,
+                    fontSize: compact ? 13 : 14,
+                }}
                 onClick={() => setOpen(v => !v)}
                 aria-haspopup="listbox"
                 aria-expanded={open}

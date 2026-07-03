@@ -1,5 +1,6 @@
 // src/pages/SRHome.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import GlobalReset from "../components/GlobalReset";
 import Section from "../components/Section";
 import CardGrid from "../components/CardGrid";
@@ -30,10 +31,13 @@ import ProfileHeader from "../components/ProfileHeader";
 import SiteTopBar from "../components/SiteTopBar";
 import SiteBackButton from "../components/SiteBackButton";
 import { useSessionTracking } from "../context/SessionTrackingContext";
+import { useSiteSearch } from "../context/SiteSearchContext";
 import { styles } from "../styles/styles";
 import { paginationStyles, bandStyles } from "./SRHome.styles";
 import { postRequest } from "../services/api";
 import { buildSearchMetadata } from "../utils/eventMetadata";
+import { filterPropertiesByQuery } from "../utils/filterPropertiesByQuery";
+import { describeSiteSearchResult, parseSiteSearch } from "../utils/siteSearchEngine";
 import "./SRHome.animations.css";
 import landingStyles from "../components/LandingHero.module.css";
 import resultsStyles from "./SRHome.module.css";
@@ -41,6 +45,9 @@ import resultsStyles from "./SRHome.module.css";
 const PROPERTIES_PER_PAGE = 18;
 const API_MAX_PER_PAGE = 100;
 const CREDIT_FILTER_FETCH_POOL = API_MAX_PER_PAGE;
+const SITE_SEARCH_FETCH_POOL = API_MAX_PER_PAGE;
+const SITE_SEARCH_PER_ZONE = 50;
+const SITE_SEARCH_PER_CITY = 100;
 
 const clampPerPage = (value) => Math.min(API_MAX_PER_PAGE, Math.max(1, value));
 
@@ -151,6 +158,8 @@ export default function SRHome() {
         totalItems: 0,
     });
     const [filteredPool, setFilteredPool] = useState([]);
+    const [textSearchFilter, setTextSearchFilter] = useState(null);
+    const [siteSearchLabel, setSiteSearchLabel] = useState("");
 
     // Filtros seleccionados (para UI)
     const [selectedGroups, setSelectedGroups] = useState([]); // ["itagui","el poblado",...]
@@ -180,6 +189,10 @@ export default function SRHome() {
     const [creditExpandOpen, setCreditExpandOpen] = useState(false);
     const [filteredCount, setFilteredCount] = useState(0);
     const { track } = useSessionTracking();
+    const { registerSearchHandler } = useSiteSearch();
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const initialUrlSearchDone = useRef(false);
 
     useEffect(() => {
         if (!creditSimulatorBoot) return;
@@ -346,20 +359,31 @@ export default function SRHome() {
     // (A) zones[] -> múltiples llamadas por id_zone
     // (B) cityIds[] -> múltiples llamadas por id_city
     // (C) uno u otro (nunca ambos a la vez en la misma ejecución)
-    const fetchWasiProperties = async ({ page = 1, cityIds = [], zones = [], creditFilterOverride = undefined }) => {
+    const fetchWasiProperties = async ({
+        page = 1,
+        cityIds = [],
+        zones = [],
+        creditFilterOverride = undefined,
+        textFilterOverride = undefined,
+    }) => {
         const activeCreditFilter = creditFilterOverride !== undefined ? creditFilterOverride : creditBudgetFilter;
-        const fetchSize = activeCreditFilter
-            ? CREDIT_FILTER_FETCH_POOL
+        const activeTextFilter = textFilterOverride !== undefined ? textFilterOverride : textSearchFilter;
+        const useLocalPool = Boolean(activeCreditFilter || activeTextFilter);
+        const fetchSize = useLocalPool
+            ? (activeTextFilter ? SITE_SEARCH_FETCH_POOL : CREDIT_FILTER_FETCH_POOL)
             : clampPerPage(pagination.perPage);
-        const apiPage = activeCreditFilter ? 1 : page;
+        const apiPage = useLocalPool ? 1 : page;
 
         const publishResults = (items, paginationPatch) => {
-            const filtered = applyCreditBudgetToProperties(items, activeCreditFilter);
+            let filtered = applyCreditBudgetToProperties(items, activeCreditFilter);
+            if (activeTextFilter) {
+                filtered = filterPropertiesByQuery(filtered, activeTextFilter);
+            }
             setFilteredCount(filtered.length);
             const perPage = pagination.perPage;
             const targetPage = paginationPatch.currentPage ?? page;
 
-            if (activeCreditFilter) {
+            if (useLocalPool) {
                 setFilteredPool(filtered);
                 const start = (targetPage - 1) * perPage;
                 setWasiProps(filtered.slice(start, start + perPage));
@@ -427,7 +451,11 @@ export default function SRHome() {
 
             // A) Consulta por ZONAS (El Poblado)
             if (Array.isArray(zones) && zones.length > 0) {
-                const perZone = clampPerPage(Math.max(1, Math.ceil(fetchSize / zones.length)));
+                const perZone = clampPerPage(
+                    activeTextFilter
+                        ? SITE_SEARCH_PER_ZONE
+                        : Math.max(1, Math.ceil(fetchSize / zones.length)),
+                );
                 const calls = zones.map((id_zone) =>
                     postRequest("searchWasiProperties", {
                         id_city: MEDELLIN_ID, // Poblado es Medellín
@@ -472,7 +500,11 @@ export default function SRHome() {
             // B) Consulta por CIUDADES
             if (Array.isArray(cityIds) && cityIds.length > 0) {
                 if (cityIds.length === 1) {
-                    const payload = { id_city: cityIds[0], page: apiPage, per_page: fetchSize };
+                    const payload = {
+                        id_city: cityIds[0],
+                        page: apiPage,
+                        per_page: clampPerPage(activeTextFilter ? SITE_SEARCH_PER_CITY : fetchSize),
+                    };
                     const result = await postRequest("searchWasiProperties", payload);
                     if (result?.success) {
                         const arr = extractWasiArray(result.data);
@@ -493,7 +525,11 @@ export default function SRHome() {
                     return;
                 }
                 // varias ciudades (agregación manual)
-                const perCity = clampPerPage(Math.max(1, Math.ceil(fetchSize / cityIds.length)));
+                const perCity = clampPerPage(
+                    activeTextFilter
+                        ? SITE_SEARCH_PER_CITY
+                        : Math.max(1, Math.ceil(fetchSize / cityIds.length)),
+                );
                 const calls = cityIds.map((id_city) =>
                     postRequest("searchWasiProperties", {
                         id_city,
@@ -634,6 +670,8 @@ export default function SRHome() {
         setWasiError(null);
         setLastQuery(null);
         setFilteredPool([]);
+        setTextSearchFilter(null);
+        setSiteSearchLabel("");
         setPagination({
             currentPage: 1,
             perPage: PROPERTIES_PER_PAGE,
@@ -662,6 +700,114 @@ export default function SRHome() {
         setCreditExpandOpen(true);
     };
 
+    const handleSiteSearchRef = useRef(async () => {});
+
+    const runSitePropertySearch = useCallback(async (parsed) => {
+        const zoneKeys = parsed.zones.map((zone) => zone.key);
+        const query = zoneKeys.length > 0
+            ? buildWasiSearchQuery({ groupKeys: zoneKeys })
+            : buildWasiSearchQuery({ allZones: true });
+
+        setTextSearchFilter(parsed);
+        setSelectedGroups(zoneKeys.length ? labelsFromGroupKeys(zoneKeys) : []);
+        setSelectedZones(query.zoneIds || []);
+        setFilterApplied(true);
+        markResultsInHistory();
+
+        track("site_search_results", {
+            action: "search_properties",
+            query: parsed.query,
+            zones: zoneKeys,
+            bedrooms: parsed.bedrooms,
+            propertyTypes: parsed.propertyTypes,
+            keywords: parsed.keywords,
+            metadata: buildSearchMetadata({
+                groups: zoneKeys,
+                zones: query.zoneIds,
+                page: 1,
+                queryType: "site_search",
+            }),
+        });
+
+        await fetchWasiProperties({
+            page: 1,
+            cityIds: query.cityIds || [],
+            zones: query.zoneIds || [],
+            textFilterOverride: parsed,
+            creditFilterOverride: null,
+        });
+        setLastQuery({ page: 1, cityIds: query.cityIds || [], zones: query.zoneIds || [] });
+
+        setTimeout(() => {
+            document.getElementById("wasi-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 120);
+    }, [track]);
+
+    const handleSiteSearch = useCallback(async (rawQuery) => {
+        const parsed = parseSiteSearch(rawQuery);
+        setSiteSearchLabel(describeSiteSearchResult(parsed));
+
+        if (searchParams.get("q")) {
+            const next = new URLSearchParams(searchParams);
+            next.delete("q");
+            setSearchParams(next, { replace: true });
+        }
+
+        track("site_search", {
+            action: parsed.action,
+            query: parsed.query,
+            zones: parsed.zones?.map((z) => z.key) || [],
+            bedrooms: parsed.bedrooms,
+            propertyTypes: parsed.propertyTypes,
+            keywords: parsed.keywords,
+        });
+
+        switch (parsed.action) {
+            case "empty":
+                return;
+            case "navigate_sell":
+                navigate("/vender");
+                return;
+            case "navigate_home":
+                handleBackToSearch("site_search");
+                return;
+            case "open_notary":
+                setSimulatorBoot({ launch: true });
+                return;
+            case "open_credit_simulator":
+                setCreditSimulatorBoot({ openSimulator: true });
+                return;
+            case "open_credit_application":
+                setCreditSimulatorBoot({ openApplication: true });
+                return;
+            case "search_properties":
+            default:
+                await runSitePropertySearch(parsed);
+        }
+    }, [
+        navigate,
+        runSitePropertySearch,
+        searchParams,
+        setSearchParams,
+        track,
+        handleBackToSearch,
+    ]);
+
+    handleSiteSearchRef.current = handleSiteSearch;
+
+    useEffect(() => {
+        registerSearchHandler((query) => handleSiteSearchRef.current(query));
+        return () => registerSearchHandler(null);
+    }, [registerSearchHandler]);
+
+    useEffect(() => {
+        if (initialUrlSearchDone.current) return;
+        const q = searchParams.get("q");
+        if (!q) return;
+        initialUrlSearchDone.current = true;
+        handleSiteSearch(q);
+    }, [handleSiteSearch, searchParams]);
+
     // Ya no cargar propiedades al inicio
     // useEffect(() => {
     //     fetchWasiProperties({ page: 1, cityIds: [MEDELLIN_ID], zones: [] });
@@ -685,7 +831,7 @@ export default function SRHome() {
             }),
         });
 
-        if (creditBudgetFilter && filteredPool.length > 0) {
+        if ((creditBudgetFilter || textSearchFilter) && filteredPool.length > 0) {
             const perPage = pagination.perPage;
             const start = (newPage - 1) * perPage;
             setWasiProps(filteredPool.slice(start, start + perPage));
@@ -791,7 +937,6 @@ export default function SRHome() {
                 <main style={{
                     ...styles.main,
                     paddingBottom: filterApplied ? (isMobile ? 88 : 48) : 0,
-                    paddingRight: filterApplied && !isMobile ? 72 : 0,
                 }}>
                     {!filterApplied ? (
                         <div className={landingStyles.hero}>
@@ -855,32 +1000,39 @@ export default function SRHome() {
                             <SiteTopBar showNav />
                             <div className={resultsStyles.resultsBar}>
                                 <div className={resultsStyles.resultsBarInner}>
-                                    <div className={resultsStyles.resultsBackRow}>
-                                        <SiteBackButton
-                                            onClick={handleBackNavigation}
-                                            label="Volver"
-                                        />
-                                    </div>
-                                    <div className={resultsStyles.resultsFilterCol}>
-                                        <RegionCityFilter
-                                            onApply={handleApplyRegionCity}
-                                            persistKey="rcf_selection_v1"
-                                            compact
-                                            simulatorInitialData={simulatorBoot}
-                                            onSimulatorConsumed={() => setSimulatorBoot(null)}
-                                            creditSimulatorInitialData={creditSimulatorBoot}
-                                            onCreditSimulatorConsumed={() => setCreditSimulatorBoot(null)}
-                                            onCreditBudgetApply={handleCreditBudgetApply}
-                                            creditExpandOpen={creditExpandOpen}
-                                            onCreditExpandClose={() => setCreditExpandOpen(false)}
-                                            creditExpandData={creditExpandData}
-                                        />
+                                    <div className={resultsStyles.resultsHeroGrid}>
+                                        <div className={resultsStyles.resultsHeroLeft}>
+                                            <SiteBackButton
+                                                onClick={handleBackNavigation}
+                                                label="Volver"
+                                                compact
+                                            />
+                                        </div>
+                                        <div className={resultsStyles.resultsHeroCenter}>
+                                            <ProfileHeader centered hideTitle compact />
+                                        </div>
+                                        <div className={resultsStyles.resultsHeroRight}>
+                                            <RegionCityFilter
+                                                onApply={handleApplyRegionCity}
+                                                persistKey="rcf_selection_v1"
+                                                compact
+                                                simulatorInitialData={simulatorBoot}
+                                                onSimulatorConsumed={() => setSimulatorBoot(null)}
+                                                creditSimulatorInitialData={creditSimulatorBoot}
+                                                onCreditSimulatorConsumed={() => setCreditSimulatorBoot(null)}
+                                                onCreditBudgetApply={handleCreditBudgetApply}
+                                                creditExpandOpen={creditExpandOpen}
+                                                onCreditExpandClose={() => setCreditExpandOpen(false)}
+                                                creditExpandData={creditExpandData}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div className={resultsStyles.resultsSection} style={bandStyles.wrap}>
                                 <Section
                                     id="wasi-section"
+                                    titleAnimated
                                     eyebrow="Inventario disponible"
                                     title={(
                                         <>
@@ -888,9 +1040,10 @@ export default function SRHome() {
                                         </>
                                     )}
                                     subtitle={
-                                        selectedGroups.length
+                                        siteSearchLabel
+                                        || (selectedGroups.length
                                             ? `Explorando ${selectedGroups.join(", ")}`
-                                            : "Explora el inventario disponible"
+                                            : "Explora el inventario disponible")
                                     }
                                 >
                                     <CreditFilterBanner

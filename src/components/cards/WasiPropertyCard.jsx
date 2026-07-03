@@ -1,8 +1,10 @@
 import { useState, useCallback } from "react";
 import ImageCarousel from "../ImageCarousel";
 import FullscreenGalleryModal from "../FullscreenGalleryModal";
+import PropertyLocationMap from "../PropertyLocationMap";
 import { useSessionTracking } from "../../context/SessionTrackingContext";
 import { buildPropertyMetadata } from "../../utils/eventMetadata";
+import { getExteriorFeatureEmoji, getInteriorFeatureEmoji } from "../../utils/featureEmoji";
 import styles from "./WasiPropertyCard.module.css";
 
 // Utilidad para capitalizar la primera letra
@@ -215,13 +217,16 @@ export default function WasiPropertyCard({
                 <div className={styles.locationBlock}>
                     <div className={styles.laminaDatosTitulo}>Dirección</div>
                     {(address || zone || city) && (
-                        <div className={styles.location}>
-                            {address && <div className={styles.locationAddress}>{capitalize(address)}</div>}
-                            {(zone || city) && (
-                                <div className={styles.locationZoneCity}>
-                                    {[capitalize(zone), capitalize(city)].filter(Boolean).join(" — ")}
-                                </div>
-                            )}
+                        <div className={styles.locationRow}>
+                            <div className={styles.location}>
+                                {address && <div className={styles.locationAddress}>{capitalize(address)}</div>}
+                                {(zone || city) && (
+                                    <div className={styles.locationZoneCity}>
+                                        {[capitalize(zone), capitalize(city)].filter(Boolean).join(" — ")}
+                                    </div>
+                                )}
+                            </div>
+                            <PropertyLocationMap address={address} zone={zone} city={city} />
                         </div>
                     )}
                 </div>
@@ -264,13 +269,13 @@ export default function WasiPropertyCard({
                     <div className={styles.features}>
                         <div className={styles.featuresList}>
                             {featuresInt.slice(0, 3).map((f, i) => (
-                                <FeatureItem key={`i-${i}`}>🏠 {capitalize(f)}</FeatureItem>
+                                <FeatureItem key={`i-${i}`}>{getInteriorFeatureEmoji(f)} {capitalize(f)}</FeatureItem>
                             ))}
                             {featuresExt.slice(0, 3).map((f, i) => (
-                                <FeatureItem key={`e-${i}`}>🌳 {capitalize(f)}</FeatureItem>
+                                <FeatureItem key={`e-${i}`}>{getExteriorFeatureEmoji(f)} {capitalize(f)}</FeatureItem>
                             ))}
                             {(featuresInt.length > 3 || featuresExt.length > 3) && (
-                                <FeatureItem>+{featuresInt.length + featuresExt.length - 3} más</FeatureItem>
+                                <FeatureItem>⋯ +{featuresInt.length + featuresExt.length - 3} más</FeatureItem>
                             )}
                         </div>
                     </div>

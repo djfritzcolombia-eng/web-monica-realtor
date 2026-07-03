@@ -274,6 +274,14 @@
     margin: 0;
     padding: 0;
     border: none;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.locationRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
 }
 
 .locationAddress,
@@ -381,5 +389,9 @@
 
     .mainInfoLabel {
         font-size: 0.58rem;
+    }
+
+    .locationRow {
+        flex-direction: column;
     }
 }
