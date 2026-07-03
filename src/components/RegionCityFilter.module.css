@@ -152,7 +152,7 @@
     width: 100%;
 }
 
-/* Panel compacto del hero de resultados (PC y móvil) */
+/* Panel compacto del hero de resultados */
 .wrapCompactDesktop {
     max-width: 100%;
     margin: 0;
@@ -258,6 +258,11 @@
 }
 
 @media (min-width: 901px) {
+    .wrapCompactDesktop {
+        width: 100%;
+        min-width: 280px;
+    }
+
     .wrapCompactDesktop .compactLabel {
         margin: 0 0 8px;
         font-size: 9px;
@@ -284,6 +289,8 @@
         font-size: 9px;
         letter-spacing: 0.1em;
         padding: 0 12px;
+        overflow: visible;
+        text-overflow: unset;
     }
 }
 

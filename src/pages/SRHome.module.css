@@ -22,96 +22,45 @@
     box-sizing: border-box;
 }
 
-/* Móvil — volver a la izquierda (centro vertical de la foto), foto al centro, controles abajo */
 .resultsHeroGrid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    align-items: center;
     width: 100%;
-    row-gap: 14px;
 }
 
-.resultsHeroLeft {
-    grid-column: 1;
-    grid-row: 1;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    align-self: center;
-    z-index: 2;
-    width: auto;
-    min-width: 0;
-}
-
-.resultsHeroCenter {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    display: flex;
-    justify-content: center;
-    justify-self: center;
-    align-self: center;
-    z-index: 1;
-    width: max-content;
-    pointer-events: none;
-}
-
-.resultsHeroCenter > * {
-    pointer-events: auto;
-}
-
-.resultsHeroRight {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: 100%;
-    max-width: min(100%, 400px);
-    justify-self: center;
-    margin: 0 auto;
-    min-width: 0;
-}
-
+/* Móvil — volver izq (centro vertical foto), foto centro, controles abajo */
 @media (max-width: 900px) {
     .resultsBarInner {
         padding: 14px 16px 18px;
-    }
-}
-
-/* PC — foto fija al centro, volver izq y filtros der */
-@media (min-width: 901px) {
-    .resultsBarInner {
-        padding: 16px clamp(32px, 5vw, 72px) 20px;
     }
 
     .resultsHeroGrid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        grid-template-rows: auto auto;
         align-items: center;
-        column-gap: clamp(12px, 2vw, 24px);
-        max-width: 1060px;
-        margin: 0 auto;
-        gap: 0;
+        row-gap: 14px;
     }
 
     .resultsHeroLeft {
         grid-column: 1;
         grid-row: 1;
-        order: unset;
-        justify-content: flex-end;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
         align-self: center;
         z-index: 2;
-        max-width: calc(50% - 72px);
-        padding-right: 6px;
+        width: auto;
+        min-width: 0;
     }
 
     .resultsHeroCenter {
         grid-column: 1 / -1;
         grid-row: 1;
-        order: unset;
+        display: flex;
+        justify-content: center;
         justify-self: center;
         align-self: center;
         z-index: 1;
         width: max-content;
-        max-width: 120px;
         pointer-events: none;
     }
 
@@ -120,13 +69,64 @@
     }
 
     .resultsHeroRight {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+        max-width: min(100%, 400px);
+        justify-self: center;
+        margin: 0 auto;
+        min-width: 0;
+    }
+}
+
+/* PC — tres columnas sin superposición: volver | foto | filtros */
+@media (min-width: 901px) {
+    .resultsBarInner {
+        padding: 16px clamp(32px, 5vw, 72px) 20px;
+    }
+
+    .resultsHeroGrid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        grid-template-rows: auto;
+        align-items: center;
+        max-width: 1060px;
+        margin: 0 auto;
+        column-gap: 0;
+    }
+
+    .resultsHeroLeft {
+        grid-column: 1;
+        grid-row: 1;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        align-self: center;
+        padding-right: clamp(16px, 2.5vw, 32px);
+        min-width: 0;
+    }
+
+    .resultsHeroCenter {
+        grid-column: 2;
+        grid-row: 1;
+        display: flex;
+        justify-content: center;
+        justify-self: center;
+        align-self: center;
+        width: max-content;
+        flex-shrink: 0;
+        pointer-events: auto;
+    }
+
+    .resultsHeroRight {
         grid-column: 3;
         grid-row: 1;
-        order: unset;
         justify-self: start;
         align-self: center;
-        z-index: 2;
-        max-width: min(340px, calc(50% - 72px));
+        width: 100%;
+        max-width: min(360px, 100%);
+        min-width: 0;
+        padding-left: clamp(16px, 2.5vw, 32px);
         margin: 0;
     }
 }
