@@ -124,9 +124,12 @@ export default function RegionCityFilter({
     };
 
     const [isNarrow, setIsNarrow] = useState(false);
+    const [isMobileResults, setIsMobileResults] = useState(false);
     useEffect(() => {
         const check = () => {
-            setIsNarrow(window.innerWidth <= 700);
+            const w = window.innerWidth;
+            setIsNarrow(w <= 700);
+            setIsMobileResults(w <= 900);
         };
         check();
         window.addEventListener("resize", check);
@@ -137,7 +140,9 @@ export default function RegionCityFilter({
 
     const desktopCompact = compact;
     const stacked = !compact && isNarrow;
-    const dropdownHeight = desktopCompact ? 38 : stacked ? CONTROL_HEIGHT : CONTROL_HEIGHT_HOME;
+    const dropdownHeight = desktopCompact
+        ? (isMobileResults ? 32 : 38)
+        : stacked ? CONTROL_HEIGHT : CONTROL_HEIGHT_HOME;
 
     const openNotary = () => {
         setActiveSimulatorData(null);

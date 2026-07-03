@@ -152,7 +152,7 @@
     width: 100%;
 }
 
-/* Panel compacto del hero de resultados (PC y móvil horizontal) */
+/* Panel compacto del hero de resultados (PC y móvil) */
 .wrapCompactDesktop {
     max-width: 100%;
     margin: 0;
@@ -161,17 +161,18 @@
 }
 
 .wrapCompactDesktop .compactLabel {
-    margin: 0 0 8px;
-    font-size: 9px;
-    letter-spacing: 0.16em;
+    margin: 0 0 6px;
+    font-size: 8px;
+    letter-spacing: 0.18em;
     text-align: left;
+    line-height: 1.2;
 }
 
 .desktopCompactLayout {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    align-items: stretch;
+    gap: 6px;
     width: 100%;
 }
 
@@ -185,28 +186,30 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 6px;
+    gap: 5px;
     width: 100%;
 }
 
 .compactActionsTop {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 5px;
     width: 100%;
 }
 
 .compactActionsTop :global(.pillPrimary),
 .compactActionsTop :global(.pillGhost),
 .compactCreditBtn:global(.pillGhost) {
-    flex: 0 0 auto;
     width: 100%;
-    height: 36px;
-    min-height: 36px;
-    font-size: 8px;
-    letter-spacing: 0.07em;
-    padding: 0 8px;
+    min-width: 0;
+    height: 32px;
+    min-height: 32px;
+    font-size: 7px;
+    letter-spacing: 0.06em;
+    padding: 0 6px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .compactCreditBtn {
@@ -214,6 +217,16 @@
 }
 
 @media (min-width: 901px) {
+    .wrapCompactDesktop .compactLabel {
+        margin: 0 0 8px;
+        font-size: 9px;
+        letter-spacing: 0.16em;
+    }
+
+    .desktopCompactLayout {
+        gap: 8px;
+    }
+
     .compactActions {
         gap: 8px;
     }

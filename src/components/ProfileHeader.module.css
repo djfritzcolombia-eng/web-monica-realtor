@@ -30,24 +30,28 @@
 
 @media (max-width: 900px) {
     .headerCompact {
-        gap: 8px;
+        gap: 6px;
+        width: 100%;
+        max-width: 100px;
     }
 
     .avatarShellCompact {
-        width: 96px;
-        height: 96px;
+        width: 92px;
+        height: 92px;
     }
 
     .avatarWrapCompact {
-        width: 96px;
-        height: 96px;
+        width: 92px;
+        height: 92px;
     }
 
     .headerCompact .handle {
-        font-size: 10px;
-        letter-spacing: 0.02em;
-        max-width: 108px;
-        line-height: 1.25;
+        font-size: 9px;
+        letter-spacing: 0.01em;
+        max-width: 100px;
+        line-height: 1.2;
+        text-align: center;
+        word-break: break-word;
     }
 }
 
