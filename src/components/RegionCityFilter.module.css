@@ -4,8 +4,29 @@
     align-items: center;
     width: 100%;
     margin: 0;
-    padding: 8px 0 0;
+    padding: 0;
     gap: 0;
+}
+
+.wrapIntro .eyebrow {
+    margin-bottom: clamp(14px, 2.5vw, 18px);
+}
+
+.wrapIntro .heading {
+    margin-bottom: clamp(26px, 4.5vw, 34px);
+}
+
+.wrapIntro .stack {
+    gap: clamp(16px, 3vw, 20px);
+}
+
+.wrapIntro .searchRow {
+    gap: clamp(10px, 2vw, 12px);
+}
+
+.wrapIntro .simulatorsRow {
+    gap: clamp(12px, 2.2vw, 14px);
+    margin-top: clamp(4px, 1vw, 8px);
 }
 
 .eyebrow {
@@ -23,7 +44,7 @@
     font-family: var(--font-main), serif;
     font-weight: 400;
     font-size: clamp(1.35rem, 3.8vw, 1.75rem);
-    margin: 0 auto 28px;
+    margin: 0 auto 22px;
     color: var(--color-topo-deep, #3a332c);
     letter-spacing: -0.01em;
     text-align: center;
@@ -295,11 +316,11 @@
 }
 
 @media (max-width: 700px) {
-    .searchRow {
+    .searchRowNarrow {
         flex-direction: column;
     }
 
-    .simulatorsRow {
+    .simulatorsRowStacked {
         flex-direction: column;
         align-items: stretch;
         max-width: 100%;

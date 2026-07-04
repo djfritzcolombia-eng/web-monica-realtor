@@ -1,11 +1,10 @@
 // src/pages/SRHome.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import GlobalReset from "../components/GlobalReset";
 import Section from "../components/Section";
 import CardGrid from "../components/CardGrid";
 import WasiPropertyCard from "../components/cards/WasiPropertyCard";
-import SkeletonCard from "../components/SkeletonCard";
 import FloatingSocial from "../components/FloatingSocial";
 import AppVersion from "../components/AppVersion";
 import RegionCityFilter from "../components/RegionCityFilter";
@@ -28,6 +27,7 @@ import {
 } from "../constants/searchZones";
 import { dedupeWasiItems } from "../utils/wasiAggregateFetch";
 import ProfileHeader from "../components/ProfileHeader";
+import HouseLineLoader from "../components/HouseLineLoader";
 import SiteTopBar from "../components/SiteTopBar";
 import SiteBackButton from "../components/SiteBackButton";
 import { useSessionTracking } from "../context/SessionTrackingContext";
@@ -48,6 +48,7 @@ const CREDIT_FILTER_FETCH_POOL = API_MAX_PER_PAGE;
 const SITE_SEARCH_FETCH_POOL = API_MAX_PER_PAGE;
 const SITE_SEARCH_PER_ZONE = 50;
 const SITE_SEARCH_PER_CITY = 100;
+const SITE_SEARCH_MAX_PAGES = 5;
 
 const clampPerPage = (value) => Math.min(API_MAX_PER_PAGE, Math.max(1, value));
 
@@ -406,7 +407,54 @@ export default function SRHome() {
         };
 
         const itemsForPublish = (aggregated) =>
-            activeCreditFilter ? aggregated : aggregated.slice(0, fetchSize);
+            activeCreditFilter || activeTextFilter ? aggregated : aggregated.slice(0, fetchSize);
+        const readTotalItems = (result, mappedLength) => Number(
+            result?.pagination?.total_items
+            ?? result?.data?.total
+            ?? result?.data?.count
+            ?? mappedLength
+        ) || mappedLength;
+        const readTotalPages = (result) => Math.max(
+            1,
+            Number(result?.pagination?.total_pages ?? result?.data?.total_pages ?? 1) || 1
+        );
+        const fetchSearchPages = async (basePayload, perPage) => {
+            const first = await postRequest("searchWasiProperties", {
+                ...basePayload,
+                page: apiPage,
+                per_page: perPage,
+            }).catch((e) => ({ __error: e }));
+
+            if (!first || first.__error || !first.success) {
+                return { items: [], totalItems: 0 };
+            }
+
+            let items = extractWasiArray(first.data).map(mapWasiItem).filter(Boolean);
+            let totalItems = readTotalItems(first, items.length);
+            const maxPages = activeTextFilter ? Math.min(SITE_SEARCH_MAX_PAGES, readTotalPages(first)) : 1;
+
+            if (maxPages > 1) {
+                const pageCalls = [];
+                for (let nextPage = 2; nextPage <= maxPages; nextPage += 1) {
+                    pageCalls.push(
+                        postRequest("searchWasiProperties", {
+                            ...basePayload,
+                            page: nextPage,
+                            per_page: perPage,
+                        }).catch((e) => ({ __error: e }))
+                    );
+                }
+
+                const rest = await Promise.all(pageCalls);
+                rest.forEach((result) => {
+                    if (!result || result.__error || !result.success) return;
+                    const mapped = extractWasiArray(result.data).map(mapWasiItem).filter(Boolean);
+                    items = items.concat(mapped);
+                });
+            }
+
+            return { items, totalItems };
+        };
         try {
             setWasiLoading(true);
             setWasiError(null);
@@ -416,26 +464,21 @@ export default function SRHome() {
                 const callCount = zones.length + cityIds.length;
                 const perCall = clampPerPage(Math.max(1, Math.ceil(fetchSize / callCount)));
                 const zoneCalls = zones.map((id_zone) =>
-                    postRequest("searchWasiProperties", {
+                    fetchSearchPages({
                         id_city: MEDELLIN_ID,
                         id_zone,
-                        page: apiPage,
-                        per_page: perCall,
-                    }).catch((e) => ({ __error: e }))
+                    }, perCall)
                 );
                 const cityCalls = cityIds.map((id_city) =>
-                    postRequest("searchWasiProperties", {
+                    fetchSearchPages({
                         id_city,
-                        page: apiPage,
-                        per_page: perCall,
-                    }).catch((e) => ({ __error: e }))
+                    }, perCall)
                 );
                 const results = await Promise.all([...zoneCalls, ...cityCalls]);
                 let aggregated = [];
                 results.forEach((r) => {
-                    if (!r || r.__error || !r.success) return;
-                    const arr = extractWasiArray(r.data);
-                    aggregated = aggregated.concat(arr.map(mapWasiItem).filter(Boolean));
+                    if (!r) return;
+                    aggregated = aggregated.concat(r.items || []);
                 });
                 aggregated = dedupeWasiItems(aggregated);
                 publishResults(itemsForPublish(aggregated), {
@@ -457,27 +500,18 @@ export default function SRHome() {
                         : Math.max(1, Math.ceil(fetchSize / zones.length)),
                 );
                 const calls = zones.map((id_zone) =>
-                    postRequest("searchWasiProperties", {
+                    fetchSearchPages({
                         id_city: MEDELLIN_ID, // Poblado es Medellín
                         id_zone,
-                        page: apiPage,
-                        per_page: perZone,
-                    }).catch((e) => ({ __error: e }))
+                    }, perZone)
                 );
                 const results = await Promise.all(calls);
                 let aggregated = [];
                 let totalItemsSum = 0;
                 results.forEach((r) => {
-                    if (!r || r.__error || !r.success) return;
-                    const arr = extractWasiArray(r.data);
-                    const mapped = arr.map(mapWasiItem).filter(Boolean);
-                    aggregated = aggregated.concat(mapped);
-                    const subtotal =
-                        r.pagination?.total_items ??
-                        r.data?.total ??
-                        r.data?.count ??
-                        mapped.length;
-                    totalItemsSum += Number(subtotal) || 0;
+                    if (!r) return;
+                    aggregated = aggregated.concat(r.items || []);
+                    totalItemsSum += Number(r.totalItems) || 0;
                 });
                 // dedupe
                 const seen = new Set();
@@ -489,8 +523,8 @@ export default function SRHome() {
                 });
                 publishResults(itemsForPublish(aggregated), {
                     currentPage: page,
-                    totalItems: activeCreditFilter ? aggregated.length : totalItemsSum,
-                    totalPages: activeCreditFilter
+                    totalItems: activeCreditFilter || activeTextFilter ? aggregated.length : totalItemsSum,
+                    totalPages: activeCreditFilter || activeTextFilter
                         ? Math.max(1, Math.ceil(aggregated.length / pagination.perPage))
                         : Math.max(1, Math.ceil(totalItemsSum / pagination.perPage)),
                 });
@@ -500,28 +534,20 @@ export default function SRHome() {
             // B) Consulta por CIUDADES
             if (Array.isArray(cityIds) && cityIds.length > 0) {
                 if (cityIds.length === 1) {
-                    const payload = {
-                        id_city: cityIds[0],
-                        page: apiPage,
-                        per_page: clampPerPage(activeTextFilter ? SITE_SEARCH_PER_CITY : fetchSize),
-                    };
-                    const result = await postRequest("searchWasiProperties", payload);
-                    if (result?.success) {
-                        const arr = extractWasiArray(result.data);
-                        const mapped = arr.map(mapWasiItem).filter(Boolean);
-                        publishResults(itemsForPublish(mapped), {
-                            currentPage: page,
-                            totalPages: activeCreditFilter
-                                ? Math.max(1, Math.ceil(mapped.length / pagination.perPage))
-                                : (result.pagination?.total_pages || 1),
-                            totalItems: activeCreditFilter
-                                ? mapped.length
-                                : (result.pagination?.total_items || mapped.length),
-                        });
-                        setLastQuery({ page, cityIds, zones: [] });
-                    } else {
-                        setWasiError(new Error(result?.error || "Error desconocido"));
-                    }
+                    const { items, totalItems } = await fetchSearchPages(
+                        { id_city: cityIds[0] },
+                        clampPerPage(activeTextFilter ? SITE_SEARCH_PER_CITY : fetchSize)
+                    );
+                    publishResults(itemsForPublish(items), {
+                        currentPage: page,
+                        totalPages: activeCreditFilter || activeTextFilter
+                            ? Math.max(1, Math.ceil(items.length / pagination.perPage))
+                            : Math.max(1, Math.ceil(totalItems / pagination.perPage)),
+                        totalItems: activeCreditFilter || activeTextFilter
+                            ? items.length
+                            : totalItems,
+                    });
+                    setLastQuery({ page, cityIds, zones: [] });
                     return;
                 }
                 // varias ciudades (agregación manual)
@@ -530,27 +556,15 @@ export default function SRHome() {
                         ? SITE_SEARCH_PER_CITY
                         : Math.max(1, Math.ceil(fetchSize / cityIds.length)),
                 );
-                const calls = cityIds.map((id_city) =>
-                    postRequest("searchWasiProperties", {
-                        id_city,
-                        page: apiPage,
-                        per_page: perCity,
-                    }).catch((e) => ({ __error: e }))
+                const results = await Promise.all(
+                    cityIds.map((id_city) => fetchSearchPages({ id_city }, perCity))
                 );
-                const results = await Promise.all(calls);
                 let aggregated = [];
                 let totalItemsSum = 0;
                 results.forEach((r) => {
-                    if (!r || r.__error || !r.success) return;
-                    const arr = extractWasiArray(r.data);
-                    const mapped = arr.map(mapWasiItem).filter(Boolean);
-                    aggregated = aggregated.concat(mapped);
-                    const subtotal =
-                        r.pagination?.total_items ??
-                        r.data?.total ??
-                        r.data?.count ??
-                        mapped.length;
-                    totalItemsSum += Number(subtotal) || 0;
+                    if (!r) return;
+                    aggregated = aggregated.concat(r.items || []);
+                    totalItemsSum += Number(r.totalItems) || 0;
                 });
                 // dedupe
                 const seen = new Set();
@@ -562,8 +576,8 @@ export default function SRHome() {
                 });
                 publishResults(itemsForPublish(aggregated), {
                     currentPage: page,
-                    totalItems: activeCreditFilter ? aggregated.length : totalItemsSum,
-                    totalPages: activeCreditFilter
+                    totalItems: activeCreditFilter || activeTextFilter ? aggregated.length : totalItemsSum,
+                    totalPages: activeCreditFilter || activeTextFilter
                         ? Math.max(1, Math.ceil(aggregated.length / pagination.perPage))
                         : Math.max(1, Math.ceil(totalItemsSum / pagination.perPage)),
                 });
@@ -950,59 +964,53 @@ export default function SRHome() {
                     {!filterApplied ? (
                         <div className={landingStyles.hero}>
                             <SiteTopBar showNav editorial onBrandClick={handleBrandHome} />
-                            <div
-                                className={`${landingStyles.content} profile-filter-responsive profile-filter-vertical ${landingStyles.panel}`}
-                            >
-                                    <ProfileHeader centered hideTitle introRing />
-                                    <RegionCityFilter
-                                        headingIntro
-                                        onApply={handleApplyRegionCity}
-                                        persistKey="rcf_selection_v1"
-                                        simulatorInitialData={simulatorBoot}
-                                        onSimulatorConsumed={() => setSimulatorBoot(null)}
-                                        creditSimulatorInitialData={creditSimulatorBoot}
-                                        onCreditSimulatorConsumed={() => setCreditSimulatorBoot(null)}
-                                        onCreditBudgetApply={handleCreditBudgetApply}
-                                        creditExpandOpen={creditExpandOpen}
-                                        onCreditExpandClose={() => setCreditExpandOpen(false)}
-                                        creditExpandData={creditExpandData}
-                                        style={{ pointerEvents: wasiLoading ? 'none' : 'auto', opacity: wasiLoading ? 0.45 : 1, filter: wasiLoading ? 'blur(2px)' : 'none', transition: 'opacity .4s, filter .4s', width: '100%' }}
-                                    />
-                                    <style>{`
-                                        .profile-filter-responsive {
-                                            box-sizing: border-box;
-                                            padding-left: 0 !important;
-                                            padding-right: 0 !important;
-                                            margin-left: auto !important;
-                                            margin-right: auto !important;
-                                        }
-                                        .profile-filter-vertical {
-                                            flex-direction: column !important;
-                                            align-items: stretch !important;
-                                        }
-                                        .profile-filter-vertical > *:not(:first-child) {
-                                            margin-top: 28px !important;
-                                        }
-                                        @media (max-width: 700px) {
-                                            .profile-filter-responsive {
-                                                padding-left: 0 !important;
-                                                padding-right: 0 !important;
-                                                max-width: 100% !important;
-                                            }
-                                        }
-                                        @media (max-width: 900px) {
-                                            .profile-filter-responsive {
-                                                padding-left: 0 !important;
-                                                padding-right: 0 !important;
-                                            }
-                                        }
-                                        .profile-filter-responsive-no-margin {
-                                            box-sizing: border-box;
-                                            margin-left: 0 !important;
-                                            margin-right: 0 !important;
-                                        }
-                                    `}</style>
+                            <div className={landingStyles.heroInner}>
+                                <div className={landingStyles.heroBody}>
+                                    <header className={landingStyles.intro} aria-label="Presentación">
+                                        <ProfileHeader centered hideTitle introRing showHandle={false} heroAvatar />
+                                        <Link
+                                            to="/"
+                                            className={landingStyles.nameLink}
+                                            onClick={handleBrandHome}
+                                        >
+                                            <h1 className={landingStyles.name}>Mónica Fritz</h1>
+                                        </Link>
+                                        <p className={landingStyles.profileHandle}>@MónicaFritzRealtor</p>
+                                    </header>
+
+                                    <section className={landingStyles.message} aria-label="Mensaje de acompañamiento">
+                                        <div className={landingStyles.messagePaper}>
+                                            <p className={landingStyles.editorialText}>
+                                                <span className={landingStyles.editorialLine}>
+                                                    Te acompaño a definir tus objetivos, entender tu capacidad de compra y construir
+                                                </span>
+                                                <span className={landingStyles.editorialLine}>
+                                                    la estrategia adecuada para tomar decisiones inmobiliarias inteligentes.
+                                                </span>
+                                            </p>
+                                        </div>
+                                    </section>
+
+                                    <hr className={landingStyles.divider} aria-hidden />
+
+                                    <section className={landingStyles.searchBlock} aria-label="Buscar propiedad">
+                                        <RegionCityFilter
+                                            headingIntro
+                                            onApply={handleApplyRegionCity}
+                                            persistKey="rcf_selection_v1"
+                                            simulatorInitialData={simulatorBoot}
+                                            onSimulatorConsumed={() => setSimulatorBoot(null)}
+                                            creditSimulatorInitialData={creditSimulatorBoot}
+                                            onCreditSimulatorConsumed={() => setCreditSimulatorBoot(null)}
+                                            onCreditBudgetApply={handleCreditBudgetApply}
+                                            creditExpandOpen={creditExpandOpen}
+                                            onCreditExpandClose={() => setCreditExpandOpen(false)}
+                                            creditExpandData={creditExpandData}
+                                            style={{ width: "100%" }}
+                                        />
+                                    </section>
                                 </div>
+                            </div>
                         </div>
                     ) : (
                         <>
@@ -1063,10 +1071,7 @@ export default function SRHome() {
                                         onClear={clearCreditBudgetFilter}
                                     />
                                     {wasiLoading && (
-                                        <CardGrid
-                                            items={Array.from({ length: 4 }, (_, i) => i)}
-                                            render={(i) => <SkeletonCard key={i} />}
-                                        />
+                                        <HouseLineLoader label="Buscando propiedades…" />
                                     )}
                                     {!wasiLoading && wasiError && (
                                         <p style={{ color: "#b00020" }}>

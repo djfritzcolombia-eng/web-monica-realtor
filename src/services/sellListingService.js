@@ -72,6 +72,37 @@ function withStoreMetadata(payload) {
     };
 }
 
+function normalizeEmail(value = "") {
+    return String(value).trim().toLowerCase();
+}
+
+function normalizePhone(value = "") {
+    return String(value).replace(/\D/g, "");
+}
+
+export function generateAccessCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+export function verifyListingAccess(listing, credentials = {}) {
+    if (!listing) return false;
+
+    const accessCode = String(credentials.accessCode || "").trim();
+    const email = normalizeEmail(credentials.email);
+    const phone = normalizePhone(credentials.phone);
+
+    if (accessCode && listing.accessCode && accessCode === String(listing.accessCode).trim()) {
+        return true;
+    }
+
+    if (email && phone) {
+        return email === normalizeEmail(listing.ownerEmail)
+            && phone === normalizePhone(listing.ownerPhone);
+    }
+
+    return false;
+}
+
 function mapListingDoc(snap, collectionName) {
     return {
         id: snap.id,
@@ -159,12 +190,16 @@ export async function submitSellListing(formData, photoFiles = []) {
 
     await ensureMonicaRealtorStore();
 
+    const accessCode = generateAccessCode();
+
     const docRef = await addDoc(collection(db, STORE_COLLECTION), {
         ...withStoreMetadata(payload),
         status: SELL_LISTING_STATUSES.pending,
         photos: [],
         adminNotes: "",
         revisionNotes: "",
+        revisionChecklist: [],
+        accessCode,
         reviewedAt: null,
         reviewedBy: "",
         publishedAt: null,
@@ -179,7 +214,18 @@ export async function submitSellListing(formData, photoFiles = []) {
         updatedAt: serverTimestamp(),
     });
 
-    return { id: docRef.id, photos, storeName: MONICA_REALTOR_STORE.name };
+    return { id: docRef.id, photos, storeName: MONICA_REALTOR_STORE.name, accessCode };
+}
+
+export async function lookupSellListing(listingId, credentials = {}) {
+    const listing = await fetchSellListingById(listingId);
+    if (!listing) {
+        throw new Error("No encontramos la solicitud indicada.");
+    }
+    if (!verifyListingAccess(listing, credentials)) {
+        throw new Error("Los datos no coinciden. Verifica referencia, correo, teléfono o código de acceso.");
+    }
+    return listing;
 }
 
 export async function fetchSellListingById(listingId) {
@@ -277,6 +323,7 @@ export async function resubmitSellListing(listingId, formData, photoFiles = [], 
         photos,
         status: SELL_LISTING_STATUSES.pending,
         revisionNotes: "",
+        revisionChecklist: [],
         updatedAt: serverTimestamp(),
     });
 

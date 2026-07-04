@@ -6,7 +6,16 @@ import {
     SELL_STATUS_LABELS,
     updateSellListingReview,
 } from "../services/sellListingService";
+import { REVISION_CHECKLIST_ITEMS } from "../constants/sellListingRevision";
+import {
+    buildOwnerMailto,
+    buildOwnerStatusMessage,
+    buildSellListingUrl,
+    buildWhatsAppUrl,
+    copyText,
+} from "../utils/sellListingLinks";
 import { getAdminUser, logoutAdmin } from "../services/adminAuth";
+import uxStyles from "../components/SellListingUx.module.css";
 import styles from "./Admin.module.css";
 
 function formatListingDate(value) {
@@ -27,14 +36,35 @@ function formatPrice(value) {
 
 function SellListingDetail({ listing, onRefresh, adminUser }) {
     const [revisionNotes, setRevisionNotes] = useState(listing.revisionNotes || "");
+    const [revisionChecklist, setRevisionChecklist] = useState(listing.revisionChecklist || []);
     const [adminNotes, setAdminNotes] = useState(listing.adminNotes || "");
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
+    const [copied, setCopied] = useState("");
 
     useEffect(() => {
         setRevisionNotes(listing.revisionNotes || "");
+        setRevisionChecklist(listing.revisionChecklist || []);
         setAdminNotes(listing.adminNotes || "");
     }, [listing]);
+
+    const ownerLink = buildSellListingUrl(listing.id);
+
+    const toggleChecklistItem = (itemId) => {
+        setRevisionChecklist((prev) => (
+            prev.includes(itemId)
+                ? prev.filter((item) => item !== itemId)
+                : [...prev, itemId]
+        ));
+    };
+
+    const handleCopy = async (label, text) => {
+        const ok = await copyText(text);
+        if (ok) {
+            setCopied(label);
+            window.setTimeout(() => setCopied(""), 2000);
+        }
+    };
 
     const runAction = async (status) => {
         if (status === SELL_LISTING_STATUSES.needs_revision && !String(revisionNotes || "").trim()) {
@@ -50,11 +80,15 @@ function SellListingDetail({ listing, onRefresh, adminUser }) {
                 {
                     status,
                     revisionNotes: status === SELL_LISTING_STATUSES.needs_revision ? revisionNotes : "",
+                    revisionChecklist: status === SELL_LISTING_STATUSES.needs_revision ? revisionChecklist : (listing.revisionChecklist || []),
                     adminNotes,
                 },
                 adminUser?.usuario || ""
             );
             setMessage(`Estado actualizado a ${SELL_STATUS_LABELS[status]}.`);
+            if (status === SELL_LISTING_STATUSES.needs_revision) {
+                setMessage(`Estado actualizado. Comparte el enlace con ${listing.ownerName || "el propietario"} para que corrija su solicitud.`);
+            }
             await onRefresh();
         } catch (err) {
             setMessage(err?.message || "No se pudo actualizar la solicitud.");
@@ -62,6 +96,12 @@ function SellListingDetail({ listing, onRefresh, adminUser }) {
             setSaving(false);
         }
     };
+
+    const ownerWhatsAppMessage = buildOwnerStatusMessage({
+        ...listing,
+        status: SELL_LISTING_STATUSES.needs_revision,
+        revisionNotes,
+    });
 
     return (
         <div className={styles.sessionDetailCard}>
@@ -148,6 +188,58 @@ function SellListingDetail({ listing, onRefresh, adminUser }) {
                     style={{ width: "100%", marginTop: 8, padding: 10, borderRadius: 8, border: "1px solid #ddd" }}
                 />
             </label>
+
+            <div className={styles.metadataBlock}>
+                <div className={styles.metadataTitle}>Checklist de correcciones</div>
+                <ul className={uxStyles.checklist}>
+                    {REVISION_CHECKLIST_ITEMS.map((item) => (
+                        <li key={item.id} className={uxStyles.checklistItem}>
+                            <input
+                                type="checkbox"
+                                checked={revisionChecklist.includes(item.id)}
+                                onChange={() => toggleChecklistItem(item.id)}
+                            />
+                            <span>{item.label}</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+
+            <div className={styles.metadataBlock}>
+                <div className={styles.metadataTitle}>Enlace para el propietario</div>
+                <p style={{ margin: "0 0 8px", wordBreak: "break-all" }}>{ownerLink}</p>
+                <div className={uxStyles.adminShareRow}>
+                    <button
+                        type="button"
+                        className={styles.btnGhost}
+                        onClick={() => handleCopy("link", ownerLink)}
+                    >
+                        {copied === "link" ? "Enlace copiado" : "Copiar enlace"}
+                    </button>
+                    <a
+                        href={buildWhatsAppUrl(ownerWhatsAppMessage, listing.ownerPhone?.replace(/\D/g, "") || undefined)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.btnGhost}
+                        style={{ textDecoration: "none" }}
+                    >
+                        WhatsApp propietario
+                    </a>
+                    {listing.ownerEmail && (
+                        <a
+                            href={buildOwnerMailto({
+                                ...listing,
+                                status: SELL_LISTING_STATUSES.needs_revision,
+                                revisionNotes,
+                            }, "Correcciones en tu solicitud de venta")}
+                            className={styles.btnGhost}
+                            style={{ textDecoration: "none" }}
+                        >
+                            Email propietario
+                        </a>
+                    )}
+                </div>
+            </div>
 
             <div className={styles.headerActions} style={{ marginTop: 18, flexWrap: "wrap" }}>
                 <button

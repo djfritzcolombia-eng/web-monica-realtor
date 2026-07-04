@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import GlobalReset from "../components/GlobalReset";
 import SiteTopBar from "../components/SiteTopBar";
+import ProfileHeader from "../components/ProfileHeader";
+import SellListingAccessGate from "../components/SellListingAccessGate";
+import SellListingSuccessPanel from "../components/SellListingSuccessPanel";
+import SellListingTracker from "../components/SellListingTracker";
 import AppVersion from "../components/AppVersion";
 import FloatingSocial from "../components/FloatingSocial";
 import {
@@ -11,8 +15,21 @@ import {
     SELL_STATUS_LABELS,
     submitSellListing,
 } from "../services/sellListingService";
+import {
+    fieldNeedsHighlight,
+    fieldsetNeedsHighlight,
+    getHighlightedFields,
+    getRevisionLabels,
+} from "../constants/sellListingRevision";
+import { buildSellListingUrl } from "../utils/sellListingLinks";
+import {
+    isListingVerified,
+    readSellListingTracking,
+    saveSellListingTracking,
+} from "../utils/sellListingTracking";
 import { MONICA_REALTOR_STORE } from "../constants/monicaRealtorStore";
 import { styles } from "../styles/styles";
+import uxStyles from "../components/SellListingUx.module.css";
 import stylesLocal from "./SellPropertyPage.module.css";
 
 const PROPERTY_TYPES = [
@@ -82,24 +99,63 @@ function listingToForm(listing) {
     };
 }
 
+function applyListingState(listing, setters) {
+    setters.setForm(listingToForm(listing));
+    setters.setExistingPhotos(listing.photos || []);
+    setters.setListingStatus(listing.status);
+    setters.setRevisionNotes(listing.revisionNotes || "");
+    setters.setRevisionChecklist(listing.revisionChecklist || []);
+    setters.setAccessCode(listing.accessCode || "");
+}
+
 export default function SellPropertyPage() {
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get("id");
+    const initialView = searchParams.get("view") === "track" ? "track" : "new";
+
+    const [pageView, setPageView] = useState(initialView);
     const [form, setForm] = useState(EMPTY_FORM);
     const [photos, setPhotos] = useState([]);
     const [existingPhotos, setExistingPhotos] = useState([]);
-    const [loadingListing, setLoadingListing] = useState(Boolean(editId));
+    const [loadingListing, setLoadingListing] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(null);
     const [listingStatus, setListingStatus] = useState(null);
     const [revisionNotes, setRevisionNotes] = useState("");
+    const [revisionChecklist, setRevisionChecklist] = useState([]);
+    const [accessCode, setAccessCode] = useState("");
+    const [accessGranted, setAccessGranted] = useState(false);
 
     const isRevisionMode = listingStatus === SELL_LISTING_STATUSES.needs_revision;
-    const isLockedReview = Boolean(editId) && listingStatus && !isRevisionMode;
+    const isLockedReview = Boolean(editId) && listingStatus && !isRevisionMode && accessGranted;
+    const highlightedFields = useMemo(
+        () => getHighlightedFields(isRevisionMode ? revisionChecklist : []),
+        [isRevisionMode, revisionChecklist]
+    );
+    const revisionLabels = useMemo(
+        () => getRevisionLabels(revisionChecklist),
+        [revisionChecklist]
+    );
+
+    const fieldClass = (fieldName) => (
+        `${stylesLocal.field}${fieldNeedsHighlight(fieldName, highlightedFields) ? ` ${stylesLocal.fieldHighlight}` : ""}`
+    );
 
     useEffect(() => {
-        if (!editId) return;
+        if (!editId) {
+            setAccessGranted(true);
+            return;
+        }
+
+        if (isListingVerified(editId)) {
+            setAccessGranted(true);
+        }
+    }, [editId]);
+
+    useEffect(() => {
+        if (!editId || !accessGranted) return;
 
         let active = true;
         (async () => {
@@ -112,10 +168,22 @@ export default function SellPropertyPage() {
                     setError("No encontramos la solicitud indicada.");
                     return;
                 }
-                setForm(listingToForm(listing));
-                setExistingPhotos(listing.photos || []);
-                setListingStatus(listing.status);
-                setRevisionNotes(listing.revisionNotes || "");
+                applyListingState(listing, {
+                    setForm,
+                    setExistingPhotos,
+                    setListingStatus,
+                    setRevisionNotes,
+                    setRevisionChecklist,
+                    setAccessCode,
+                });
+                saveSellListingTracking({
+                    id: listing.id,
+                    accessCode: listing.accessCode || "",
+                    email: listing.ownerEmail,
+                    phone: listing.ownerPhone,
+                    status: listing.status,
+                    title: listing.title,
+                });
             } catch (err) {
                 if (active) {
                     setError(err?.message || "No se pudo cargar la solicitud.");
@@ -128,7 +196,7 @@ export default function SellPropertyPage() {
         return () => {
             active = false;
         };
-    }, [editId]);
+    }, [editId, accessGranted]);
 
     const photoPreviewUrls = useMemo(
         () => photos.map((file) => URL.createObjectURL(file)),
@@ -165,6 +233,27 @@ export default function SellPropertyPage() {
         setPhotos((prev) => prev.filter((_, i) => i !== index));
     };
 
+    const handleAccessVerified = (listing) => {
+        applyListingState(listing, {
+            setForm,
+            setExistingPhotos,
+            setListingStatus,
+            setRevisionNotes,
+            setRevisionChecklist,
+            setAccessCode,
+        });
+        setAccessGranted(true);
+        setLoadingListing(false);
+        saveSellListingTracking({
+            id: listing.id,
+            accessCode: listing.accessCode || "",
+            email: listing.ownerEmail,
+            phone: listing.ownerPhone,
+            status: listing.status,
+            title: listing.title,
+        });
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
         setSubmitting(true);
@@ -187,18 +276,49 @@ export default function SellPropertyPage() {
 
             if (editId && isRevisionMode) {
                 await resubmitSellListing(editId, payload, photos, existingPhotos);
+                const listing = {
+                    id: editId,
+                    accessCode,
+                    ownerEmail: form.ownerEmail,
+                    ownerName: form.ownerName,
+                    title: form.title,
+                    status: SELL_LISTING_STATUSES.pending,
+                };
+                saveSellListingTracking({
+                    id: editId,
+                    accessCode,
+                    email: form.ownerEmail,
+                    phone: form.ownerPhone,
+                    status: SELL_LISTING_STATUSES.pending,
+                    title: form.title,
+                });
                 setSuccess({
                     title: "Correcciones enviadas",
                     message: "Recibimos tu actualización. Mónica revisará nuevamente tu inmueble antes de publicarlo.",
-                    id: editId,
+                    listing,
                 });
             } else {
                 const result = await submitSellListing(payload, photos);
-                localStorage.setItem("mf_last_sell_listing_id", result.id);
+                const listing = {
+                    id: result.id,
+                    accessCode: result.accessCode,
+                    ownerEmail: form.ownerEmail,
+                    ownerName: form.ownerName,
+                    title: form.title,
+                    status: SELL_LISTING_STATUSES.pending,
+                };
+                saveSellListingTracking({
+                    id: result.id,
+                    accessCode: result.accessCode,
+                    email: form.ownerEmail,
+                    phone: form.ownerPhone,
+                    status: SELL_LISTING_STATUSES.pending,
+                    title: form.title,
+                });
                 setSuccess({
                     title: "Solicitud recibida",
-                    message: `Tu inmueble quedó guardado en ${MONICA_REALTOR_STORE.name}. Entró en revisión y te contactaremos si necesitamos ajustes antes de publicarlo.`,
-                    id: result.id,
+                    message: `Tu inmueble quedó guardado en ${MONICA_REALTOR_STORE.name}. Entró en revisión y te avisaremos si necesitamos ajustes.`,
+                    listing,
                 });
                 setForm(EMPTY_FORM);
                 setPhotos([]);
@@ -210,6 +330,9 @@ export default function SellPropertyPage() {
         }
     };
 
+    const tracking = readSellListingTracking();
+    const showTabs = !editId && !success;
+
     return (
         <>
             <GlobalReset />
@@ -219,62 +342,107 @@ export default function SellPropertyPage() {
                     <section className={stylesLocal.hero}>
                         <p className={stylesLocal.eyebrow}>Monica Fritz Realtor · Vender</p>
                         <h1 className={stylesLocal.title}>
-                            Publica tu inmueble con <em>revisión profesional</em>
+                            ¿Quieres vender tu propiedad con una estrategia profesional?
                         </h1>
                         <p className={stylesLocal.lead}>
-                            Completa el formulario con fotos y datos. Cada solicitud pasa por revisión de Mónica Fritz
-                            antes de aprobarse y publicarse.
+                            Completa el formulario con la información y fotografías de tu inmueble. Revisaré personalmente tu solicitud para brindarte una asesoría estratégica y definir el mejor plan de comercialización para lograr una venta exitosa.
                         </p>
                     </section>
+
+                    {showTabs && (
+                        <div className={uxStyles.pageTabs}>
+                            <button
+                                type="button"
+                                className={pageView === "new" ? uxStyles.pageTabActive : uxStyles.pageTab}
+                                onClick={() => setPageView("new")}
+                            >
+                                Publicar inmueble
+                            </button>
+                            <button
+                                type="button"
+                                className={pageView === "track" ? uxStyles.pageTabActive : uxStyles.pageTab}
+                                onClick={() => setPageView("track")}
+                            >
+                                Consultar mi solicitud
+                            </button>
+                            {tracking?.id && (
+                                <Link to={`/vender?id=${tracking.id}`} className={uxStyles.secondaryBtn}>
+                                    Retomar última solicitud
+                                </Link>
+                            )}
+                        </div>
+                    )}
 
                     {loadingListing && (
                         <p className={stylesLocal.notice}>Cargando solicitud…</p>
                     )}
 
-                    {revisionNotes && isRevisionMode && (
+                    {editId && !accessGranted && !loadingListing && (
+                        <SellListingAccessGate
+                            listingId={editId}
+                            onVerified={handleAccessVerified}
+                            initialEmail={tracking?.email || ""}
+                            initialPhone={tracking?.phone || ""}
+                            initialAccessCode={tracking?.accessCode || ""}
+                        />
+                    )}
+
+                    {!editId && pageView === "track" && !success && (
+                        <SellListingTracker onStartNew={() => setPageView("new")} />
+                    )}
+
+                    {success?.listing && (
+                        <SellListingSuccessPanel
+                            title={success.title}
+                            message={success.message}
+                            listing={success.listing}
+                            showSendAnother={!isRevisionMode}
+                            onSendAnother={() => {
+                                setSuccess(null);
+                                setPageView("new");
+                                navigate("/vender");
+                            }}
+                        />
+                    )}
+
+                    {editId && accessGranted && isRevisionMode && revisionNotes && (
                         <div className={stylesLocal.revisionBox}>
-                            <strong>Observaciones de revisión</strong>
+                            <strong>Mónica solicitó estos ajustes</strong>
                             <p>{revisionNotes}</p>
+                            {revisionLabels.length > 0 && (
+                                <ul className={stylesLocal.revisionChecklist}>
+                                    {revisionLabels.map((label) => (
+                                        <li key={label}>{label}</li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
                     )}
 
-                    {success ? (
+                    {!success && editId && accessGranted && isLockedReview && (
                         <div className={stylesLocal.successBox}>
-                            <h2>{success.title}</h2>
-                            <p>{success.message}</p>
-                            <p className={stylesLocal.reference}>Referencia: {success.id}</p>
-                            <div className={stylesLocal.successActions}>
-                                <Link to="/" className={stylesLocal.secondaryBtn}>Volver a buscar</Link>
-                                {!isRevisionMode && (
-                                    <button
-                                        type="button"
-                                        className={stylesLocal.primaryBtn}
-                                        onClick={() => setSuccess(null)}
-                                    >
-                                        Enviar otro inmueble
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    ) : isLockedReview ? (
-                        <div className={stylesLocal.successBox}>
-                            <h2>Solicitud en revisión</h2>
+                            <h2>Solicitud en seguimiento</h2>
                             <p>
                                 Tu inmueble está en estado{" "}
                                 <strong>{SELL_STATUS_LABELS[listingStatus] || listingStatus}</strong>.
-                                Si Mónica solicita correcciones, podrás editarlo desde el enlace que te compartamos.
                             </p>
                             <p className={stylesLocal.reference}>Referencia: {editId}</p>
+                            <p className={stylesLocal.notice}>
+                                Enlace de seguimiento: {buildSellListingUrl(editId)}
+                            </p>
                             <div className={stylesLocal.successActions}>
                                 <Link to="/" className={stylesLocal.secondaryBtn}>Volver a buscar</Link>
+                                <Link to="/vender?view=track" className={stylesLocal.secondaryBtn}>Consultar otra solicitud</Link>
                             </div>
                         </div>
-                    ) : (
+                    )}
+
+                    {!success && accessGranted && (!editId ? pageView === "new" : isRevisionMode) && (
                         <form className={stylesLocal.form} onSubmit={handleSubmit}>
-                            <fieldset className={stylesLocal.fieldset}>
+                            <fieldset className={`${stylesLocal.fieldset}${fieldsetNeedsHighlight(["ownerName", "ownerEmail", "ownerPhone"], highlightedFields) ? ` ${stylesLocal.fieldsetHighlight}` : ""}`}>
                                 <legend>Datos de contacto</legend>
                                 <div className={stylesLocal.grid}>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("ownerName")}>
                                         <span>Nombre completo *</span>
                                         <input
                                             required
@@ -282,7 +450,7 @@ export default function SellPropertyPage() {
                                             onChange={(e) => updateField("ownerName", e.target.value)}
                                         />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("ownerEmail")}>
                                         <span>Correo electrónico *</span>
                                         <input
                                             required
@@ -291,7 +459,7 @@ export default function SellPropertyPage() {
                                             onChange={(e) => updateField("ownerEmail", e.target.value)}
                                         />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("ownerPhone")}>
                                         <span>Teléfono / WhatsApp *</span>
                                         <input
                                             required
@@ -302,10 +470,10 @@ export default function SellPropertyPage() {
                                 </div>
                             </fieldset>
 
-                            <fieldset className={stylesLocal.fieldset}>
+                            <fieldset className={`${stylesLocal.fieldset}${fieldsetNeedsHighlight(["propertyType", "title", "description", "address", "neighborhood", "city", "price", "adminFee", "bedrooms", "bathrooms", "garages", "area", "stratum", "floor", "year", "amenities"], highlightedFields) ? ` ${stylesLocal.fieldsetHighlight}` : ""}`}>
                                 <legend>Información del inmueble</legend>
                                 <div className={stylesLocal.grid}>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("propertyType")}>
                                         <span>Tipo de inmueble *</span>
                                         <select
                                             value={form.propertyType}
@@ -316,7 +484,7 @@ export default function SellPropertyPage() {
                                             ))}
                                         </select>
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("title")}>
                                         <span>Título del aviso *</span>
                                         <input
                                             required
@@ -325,7 +493,7 @@ export default function SellPropertyPage() {
                                             placeholder="Ej. Apartamento en El Poblado"
                                         />
                                     </label>
-                                    <label className={`${stylesLocal.field} ${stylesLocal.fieldFull}`}>
+                                    <label className={`${fieldClass("description")} ${stylesLocal.fieldFull}`}>
                                         <span>Descripción *</span>
                                         <textarea
                                             required
@@ -335,7 +503,7 @@ export default function SellPropertyPage() {
                                             placeholder="Describe el inmueble, estado, entorno y condiciones de venta."
                                         />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("address")}>
                                         <span>Dirección *</span>
                                         <input
                                             required
@@ -343,7 +511,7 @@ export default function SellPropertyPage() {
                                             onChange={(e) => updateField("address", e.target.value)}
                                         />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("neighborhood")}>
                                         <span>Barrio *</span>
                                         <input
                                             required
@@ -351,7 +519,7 @@ export default function SellPropertyPage() {
                                             onChange={(e) => updateField("neighborhood", e.target.value)}
                                         />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("city")}>
                                         <span>Ciudad *</span>
                                         <input
                                             required
@@ -359,7 +527,7 @@ export default function SellPropertyPage() {
                                             onChange={(e) => updateField("city", e.target.value)}
                                         />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("price")}>
                                         <span>Precio de venta (COP) *</span>
                                         <input
                                             required
@@ -369,7 +537,7 @@ export default function SellPropertyPage() {
                                             onChange={(e) => updateField("price", e.target.value)}
                                         />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("adminFee")}>
                                         <span>Administración (COP)</span>
                                         <input
                                             type="number"
@@ -378,38 +546,38 @@ export default function SellPropertyPage() {
                                             onChange={(e) => updateField("adminFee", e.target.value)}
                                         />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("bedrooms")}>
                                         <span>Habitaciones</span>
                                         <input type="number" min="0" value={form.bedrooms} onChange={(e) => updateField("bedrooms", e.target.value)} />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("bathrooms")}>
                                         <span>Baños</span>
                                         <input type="number" min="0" value={form.bathrooms} onChange={(e) => updateField("bathrooms", e.target.value)} />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("garages")}>
                                         <span>Garajes</span>
                                         <input type="number" min="0" value={form.garages} onChange={(e) => updateField("garages", e.target.value)} />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("area")}>
                                         <span>Área (m²)</span>
                                         <input type="number" min="0" value={form.area} onChange={(e) => updateField("area", e.target.value)} />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("stratum")}>
                                         <span>Estrato</span>
                                         <input type="number" min="1" max="6" value={form.stratum} onChange={(e) => updateField("stratum", e.target.value)} />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("floor")}>
                                         <span>Piso</span>
                                         <input type="number" value={form.floor} onChange={(e) => updateField("floor", e.target.value)} />
                                     </label>
-                                    <label className={stylesLocal.field}>
+                                    <label className={fieldClass("year")}>
                                         <span>Año construcción</span>
                                         <input type="number" min="1900" max="2100" value={form.year} onChange={(e) => updateField("year", e.target.value)} />
                                     </label>
                                 </div>
                             </fieldset>
 
-                            <fieldset className={stylesLocal.fieldset}>
+                            <fieldset className={`${stylesLocal.fieldset}${fieldsetNeedsHighlight(["amenities"], highlightedFields) ? ` ${stylesLocal.fieldsetHighlight}` : ""}`}>
                                 <legend>Amenidades</legend>
                                 <div className={stylesLocal.amenities}>
                                     {AMENITY_OPTIONS.map((amenity) => (
@@ -425,7 +593,7 @@ export default function SellPropertyPage() {
                                 </div>
                             </fieldset>
 
-                            <fieldset className={stylesLocal.fieldset}>
+                            <fieldset className={`${stylesLocal.fieldset}${fieldsetNeedsHighlight(["photos"], highlightedFields) ? ` ${stylesLocal.fieldsetHighlight}` : ""}`}>
                                 <legend>Fotografías *</legend>
                                 <p className={stylesLocal.help}>
                                     Sube hasta 12 fotos. Formatos JPG o PNG. Mínimo 1 foto.
@@ -449,7 +617,7 @@ export default function SellPropertyPage() {
                                         multiple
                                         onChange={handlePhotoChange}
                                     />
-                                    <span>Seleccionar fotos</span>
+                                    <span>{isRevisionMode ? "Agregar fotos faltantes" : "Seleccionar fotos"}</span>
                                 </label>
 
                                 {photoPreviewUrls.length > 0 && (
@@ -470,12 +638,6 @@ export default function SellPropertyPage() {
                                 )}
                             </fieldset>
 
-                            {listingStatus && !isRevisionMode && editId && (
-                                <p className={stylesLocal.notice}>
-                                    Estado actual: {SELL_STATUS_LABELS[listingStatus] || listingStatus}
-                                </p>
-                            )}
-
                             {error && <p className={stylesLocal.error}>{error}</p>}
 
                             <button
@@ -491,6 +653,14 @@ export default function SellPropertyPage() {
                             </button>
                         </form>
                     )}
+
+                    {error && !success && editId && accessGranted && !isRevisionMode && !isLockedReview && (
+                        <p className={stylesLocal.error}>{error}</p>
+                    )}
+
+                    <footer className={stylesLocal.pageHandle} aria-label="Contacto">
+                        <ProfileHeader centered hideTitle showAvatar={false} />
+                    </footer>
                 </main>
                 <AppVersion />
                 <FloatingSocial phone="573212080985" placement="bottom" />

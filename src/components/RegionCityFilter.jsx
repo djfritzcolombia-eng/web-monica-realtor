@@ -31,6 +31,7 @@ export default function RegionCityFilter({
     onCreditExpandClose = () => { },
     creditExpandData = null,
     headingIntro = false,
+    photoLayout = false,
 }) {
     const [selectedKeys, setSelectedKeys] = useState([]);
     const [error, setError] = useState(null);
@@ -139,7 +140,7 @@ export default function RegionCityFilter({
     const modalFallback = null;
 
     const desktopCompact = compact;
-    const stacked = !compact && isNarrow;
+    const stacked = !compact && isNarrow && !photoLayout;
     const dropdownHeight = desktopCompact
         ? (isMobileResults ? 44 : 38)
         : stacked ? CONTROL_HEIGHT : CONTROL_HEIGHT_HOME;
@@ -157,7 +158,7 @@ export default function RegionCityFilter({
 
     return (
         <>
-            <div className={`${styles.wrap} ${compact ? styles.wrapCompact : ""} ${desktopCompact ? styles.wrapCompactDesktop : ""} ${desktopCompact && isMobileResults ? styles.wrapCompactMobile : ""}`}>
+            <div className={`${styles.wrap} ${headingIntro ? styles.wrapIntro : ""} ${compact ? styles.wrapCompact : ""} ${desktopCompact ? styles.wrapCompactDesktop : ""} ${desktopCompact && isMobileResults ? styles.wrapCompactMobile : ""}`}>
                 {!compact && (
                     <>
                         <p className={styles.eyebrow}>Buscar propiedad</p>
@@ -216,7 +217,7 @@ export default function RegionCityFilter({
                     </div>
                 ) : (
                 <div className={`${styles.stack} ${stacked ? "pillStack" : ""}`}>
-                    <div className={`${styles.searchRow} ${stacked ? styles.searchRowNarrow : ""} ${!compact && !stacked ? styles.searchRowHome : ""}`}>
+                    <div className={`${styles.searchRow} ${stacked ? styles.searchRowNarrow : ""} ${!compact && (!stacked || photoLayout) ? styles.searchRowHome : ""}`}>
                         <div className={styles.dropdownWrap}>
                             <CustomDropdown
                                 options={DISPLAY_ORDER.map((label) => ({ label, value: label }))}

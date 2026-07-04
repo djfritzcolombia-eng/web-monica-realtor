@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import SiteSearchBar from "./SiteSearchBar";
+import { useSellListingNav } from "../hooks/useSellListingNav";
 import styles from "./SiteTopBar.module.css";
 
 export default function SiteTopBar({
@@ -16,6 +17,17 @@ export default function SiteTopBar({
     const onHome = location.pathname === "/";
     const onSell = location.pathname.startsWith("/vender");
     const initialQuery = searchParams.get("q") || "";
+    const sellNav = useSellListingNav(onSell);
+
+    const sellLink = (
+        <Link
+            to={sellNav.to}
+            className={`${styles.navLink} ${(onSell || sellNav.activeClass) ? styles.navLinkActive : ""}`}
+        >
+            {sellNav.label}
+            {sellNav.badge && <span className={styles.navBadge}>{sellNav.badge}</span>}
+        </Link>
+    );
 
     const handleBrandClick = (event) => {
         if (onBrandClick) {
@@ -37,43 +49,20 @@ export default function SiteTopBar({
         </>
     );
 
-    const nav = showNav ? (
-        <nav className={styles.nav} aria-label="Navegación principal">
-            <SiteSearchBar initialQuery={onHome ? initialQuery : ""} />
-            <Link
-                to="/vender"
-                className={`${styles.navLink} ${onSell ? styles.navLinkActive : ""}`}
-            >
-                Vender
-            </Link>
-        </nav>
-    ) : null;
-
     if (editorial) {
         return (
-            <header className={styles.editorialStack}>
-                {showNav && (
-                    <div className={styles.bar}>
-                        <Link to="/" className={styles.brandLink} onClick={handleBrandClick}>
+            <header className={styles.editorialNav}>
+                <div className={styles.barEditorialHome}>
+                    <div className={styles.brandStack}>
+                        <Link to="/" className={styles.brandLinkEditorial} onClick={handleBrandClick}>
                             {brandMark}
                         </Link>
-                        {nav}
+                        <p className={styles.brandTagline}>Tu agente inmobiliaria</p>
                     </div>
-                )}
-                <div className={styles.barEditorial}>
-                    <Link to="/" className={styles.brandLargeLink} onClick={handleBrandClick}>
-                        <h1 className={styles.brandLarge}>Mónica Fritz</h1>
-                    </Link>
-                    <p className={styles.brandSubtitle}>Tu agente inmobiliaria</p>
-                    {showBack && onBack && (
-                        <nav className={styles.navEditorial} aria-label="Navegación principal">
-                            <button
-                                type="button"
-                                className={styles.navLink}
-                                onClick={onBack}
-                            >
-                                <span aria-hidden>←</span> {backLabel}
-                            </button>
+                    {showNav && (
+                        <nav className={`${styles.nav} ${styles.navEditorialHome}`} aria-label="Navegación principal">
+                            <SiteSearchBar initialQuery={onHome ? initialQuery : ""} />
+                            {sellLink}
                         </nav>
                     )}
                 </div>
@@ -90,12 +79,7 @@ export default function SiteTopBar({
                 {showNav && (
                     <>
                         <SiteSearchBar initialQuery={onHome ? initialQuery : ""} />
-                        <Link
-                            to="/vender"
-                            className={`${styles.navLink} ${onSell ? styles.navLinkActive : ""}`}
-                        >
-                            Vender
-                        </Link>
+                        {sellLink}
                     </>
                 )}
                 {showBack && onBack && (
