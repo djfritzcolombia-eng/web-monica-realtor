@@ -1,0 +1,11 @@
+.wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    padding: 24px 16px;
+}
+
+.wrap :global(p) {
+    margin-top: 14px;
+}

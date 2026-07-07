@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import CustomDropdown from "./CustomDropdown";
+import PropertyFilterChips from "./PropertyFilterChips";
+import PropertyFiltersMenu from "./PropertyFiltersMenu";
 import { CREDIT_SEARCH_ZONES, buildWasiSearchQuery } from "../constants/searchZones";
+import { EMPTY_ADVANCED_FILTER } from "../utils/propertyAdvancedFilters";
 import { useSessionTracking } from "../context/SessionTrackingContext";
 import { buildSearchMetadata } from "../utils/eventMetadata";
 import styles from "./RegionCityFilter.module.css";
@@ -32,6 +35,9 @@ export default function RegionCityFilter({
     creditExpandData = null,
     headingIntro = false,
     photoLayout = false,
+    advancedFilter = EMPTY_ADVANCED_FILTER,
+    onAdvancedFilterApply = () => {},
+    onAdvancedFilterChipRemove = () => {},
 }) {
     const [selectedKeys, setSelectedKeys] = useState([]);
     const [error, setError] = useState(null);
@@ -173,37 +179,49 @@ export default function RegionCityFilter({
                 {error && <div className={styles.error}>{error}</div>}
                 {desktopCompact ? (
                     <div className={styles.desktopCompactLayout}>
-                        <div className={styles.desktopDropdown}>
-                            <CustomDropdown
-                                options={DISPLAY_ORDER.map((label) => ({ label, value: label }))}
-                                value={selectedKeys[0] || ""}
-                                onChange={handleSelect}
-                                placeholder="Selecciona una zona..."
-                                height={dropdownHeight}
-                                compact
-                            />
-                        </div>
-                        <div className={styles.compactActions}>
-                            <div className={styles.compactActionsTop}>
-                                <button
-                                    type="button"
-                                    onClick={handleApply}
-                                    disabled={!canApply}
-                                    className="pillPrimary"
-                                    title={canApply ? "Buscar propiedades" : "Selecciona una zona"}
-                                >
-                                    Buscar
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={openNotary}
-                                    className="pillGhost"
-                                    title={CALC_LABEL}
-                                    aria-label={`Abrir ${CALC_LABEL}`}
-                                >
-                                    Gastos notariales
-                                </button>
+                        <div className={styles.searchControls}>
+                            <div className={styles.searchTopRow}>
+                                <div className={styles.dropdownWrap}>
+                                    <CustomDropdown
+                                        options={DISPLAY_ORDER.map((label) => ({ label, value: label }))}
+                                        value={selectedKeys[0] || ""}
+                                        onChange={handleSelect}
+                                        placeholder="Zona..."
+                                        height={dropdownHeight}
+                                        compact
+                                    />
+                                </div>
+                                <PropertyFiltersMenu
+                                    appliedFilter={advancedFilter}
+                                    onApply={onAdvancedFilterApply}
+                                    compact
+                                    controlHeight={dropdownHeight}
+                                />
                             </div>
+                            <button
+                                type="button"
+                                onClick={handleApply}
+                                disabled={!canApply}
+                                className={`pillPrimary ${styles.searchBtn}`}
+                                title={canApply ? "Buscar propiedades" : "Selecciona una zona"}
+                            >
+                                Buscar
+                            </button>
+                        </div>
+                        <PropertyFilterChips
+                            filter={advancedFilter}
+                            onRemove={onAdvancedFilterChipRemove}
+                        />
+                        <div className={styles.compactActions}>
+                            <button
+                                type="button"
+                                onClick={openNotary}
+                                className="pillGhost"
+                                title={CALC_LABEL}
+                                aria-label={`Abrir ${CALC_LABEL}`}
+                            >
+                                Gastos notariales
+                            </button>
                             <button
                                 type="button"
                                 onClick={openCredit}
@@ -217,27 +235,39 @@ export default function RegionCityFilter({
                     </div>
                 ) : (
                 <div className={`${styles.stack} ${stacked ? "pillStack" : ""}`}>
-                    <div className={`${styles.searchRow} ${stacked ? styles.searchRowNarrow : ""} ${!compact && (!stacked || photoLayout) ? styles.searchRowHome : ""}`}>
-                        <div className={styles.dropdownWrap}>
-                            <CustomDropdown
-                                options={DISPLAY_ORDER.map((label) => ({ label, value: label }))}
-                                value={selectedKeys[0] || ""}
-                                onChange={handleSelect}
-                                placeholder="Selecciona una zona..."
-                                height={dropdownHeight}
-                                compact={false}
+                    <div className={`${styles.searchControls} ${!compact ? styles.searchControlsHome : ""}`}>
+                        <div className={styles.searchTopRow}>
+                            <div className={styles.dropdownWrap}>
+                                <CustomDropdown
+                                    options={DISPLAY_ORDER.map((label) => ({ label, value: label }))}
+                                    value={selectedKeys[0] || ""}
+                                    onChange={handleSelect}
+                                    placeholder="Zona..."
+                                    height={dropdownHeight}
+                                    compact={stacked}
+                                />
+                            </div>
+                            <PropertyFiltersMenu
+                                appliedFilter={advancedFilter}
+                                onApply={onAdvancedFilterApply}
+                                compact={compact || stacked}
+                                controlHeight={dropdownHeight}
                             />
                         </div>
                         <button
                             type="button"
                             onClick={handleApply}
                             disabled={!canApply}
-                            className={`pillPrimary ${stacked ? "pillFull" : ""}`}
+                            className={`pillPrimary ${styles.searchBtn}`}
                             title={canApply ? "Buscar propiedades" : "Selecciona una zona"}
                         >
-                            Buscar propiedades
+                            Buscar
                         </button>
                     </div>
+                    <PropertyFilterChips
+                        filter={advancedFilter}
+                        onRemove={onAdvancedFilterChipRemove}
+                    />
                     <div className={`${styles.simulatorsRow} ${stacked ? styles.simulatorsRowStacked : ""}`}>
                         <button
                             type="button"

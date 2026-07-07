@@ -1,0 +1,82 @@
+.hero {
+    padding: clamp(28px, 5vw, 48px) 20px 12px;
+    background: transparent;
+}
+
+.heroInner {
+    max-width: 720px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.heroLoader {
+    padding-top: 0;
+    padding-bottom: 4px;
+}
+
+.eyebrow {
+    margin: 8px 0 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: var(--letter-editorial, 0.18em);
+    text-transform: uppercase;
+    color: var(--color-topo, #6e6259);
+}
+
+.title {
+    margin: 10px 0 0;
+    font-family: var(--font-main), serif;
+    font-size: clamp(1.8rem, 5vw, 2.5rem);
+    font-weight: 400;
+    line-height: 1.1;
+    color: var(--color-topo-deep, #3a332c);
+}
+
+.message {
+    margin: 18px auto 0;
+    max-width: 640px;
+    text-align: left;
+    color: var(--color-topo, #6e6259);
+    font-size: 0.95rem;
+    line-height: 1.65;
+}
+
+.message p {
+    margin: 0 0 12px;
+}
+
+.message strong {
+    color: var(--color-topo-deep, #3a332c);
+}
+
+.count {
+    margin: 16px 0 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-emerald-muted, #2d5c54);
+}
+
+.recommendedLink {
+    display: inline-flex;
+    margin-top: 18px;
+    min-height: var(--btn-pill-height, 44px);
+    align-items: center;
+    justify-content: center;
+    padding: 0 18px;
+    border-radius: 999px;
+    border: 1px solid var(--color-topo-deep, #3a332c);
+    color: var(--color-topo-deep, #3a332c);
+    font-size: var(--btn-pill-font-size, 10px);
+    font-weight: 700;
+    letter-spacing: var(--btn-pill-letter-spacing, 0.14em);
+    text-transform: uppercase;
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.recommendedLink:hover {
+    border-color: var(--color-emerald-muted, #2d5c54);
+    color: var(--color-emerald-muted, #2d5c54);
+}

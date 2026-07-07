@@ -213,6 +213,24 @@ export function filterPropertiesByCreditBudget(properties, filter) {
     });
 }
 
+async function copyTextToClipboard(text) {
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    if (!copied) throw new Error("clipboard_unavailable");
+}
+
 export async function shareCreditSimulatorLink(url) {
     const shareData = {
         title: "Propiedades acordes a tu presupuesto — Mónica Fritz",
@@ -220,11 +238,19 @@ export async function shareCreditSimulatorLink(url) {
         url,
     };
 
-    if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
-        await navigator.share(shareData);
-        return "shared";
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile && navigator.share) {
+        try {
+            if (!navigator.canShare || navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+                return "shared";
+            }
+        } catch (err) {
+            if (err?.name === "AbortError") throw err;
+        }
     }
 
-    await navigator.clipboard.writeText(url);
+    await copyTextToClipboard(url);
     return "copied";
 }

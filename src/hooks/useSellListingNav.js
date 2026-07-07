@@ -40,6 +40,7 @@ export function useSellListingNav(isSellRoute) {
                     SELL_LISTING_STATUSES.pending,
                     SELL_LISTING_STATUSES.approved,
                     SELL_LISTING_STATUSES.published,
+                    SELL_LISTING_STATUSES.withdrawn,
                     SELL_LISTING_STATUSES.rejected,
                 ].includes(listing.status)) {
                     setNav({

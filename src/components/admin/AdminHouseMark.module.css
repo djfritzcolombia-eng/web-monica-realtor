@@ -1,0 +1,36 @@
+.mark {
+    display: block;
+    width: 42px;
+    height: auto;
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+.stroke {
+    fill: none;
+    stroke: rgba(216, 164, 143, 0.85);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 0.38 0.62;
+    stroke-dashoffset: 0;
+    animation: adminHouseLasso 6s linear infinite;
+}
+
+@keyframes adminHouseLasso {
+    0% {
+        stroke-dashoffset: 0;
+    }
+
+    100% {
+        stroke-dashoffset: -1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stroke {
+        animation: none;
+        stroke-dasharray: none;
+    }
+}

@@ -1,6 +1,14 @@
 import { SELL_STATUS_LABELS } from "../services/sellListingService";
+import { getRevisionLabels } from "../constants/sellListingRevision";
 
 const WHATSAPP_PHONE = "573212080985";
+
+export function normalizeOwnerPhone(phone) {
+    const digits = String(phone || "").replace(/\D/g, "");
+    if (!digits) return null;
+    if (digits.length === 10 && digits.startsWith("3")) return `57${digits}`;
+    return digits;
+}
 
 export function buildSellListingUrl(listingId) {
     if (typeof window === "undefined") {
@@ -10,12 +18,14 @@ export function buildSellListingUrl(listingId) {
 }
 
 export function buildWhatsAppUrl(message, phone = WHATSAPP_PHONE) {
-    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    const normalized = normalizeOwnerPhone(phone) || WHATSAPP_PHONE;
+    return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
 
 export function buildOwnerStatusMessage(listing) {
     const url = buildSellListingUrl(listing.id);
     const status = SELL_STATUS_LABELS[listing.status] || listing.status;
+    const checklistLabels = getRevisionLabels(listing.revisionChecklist || []);
     const lines = [
         `Hola ${listing.ownerName || ""},`.trim(),
         "",
@@ -27,14 +37,45 @@ export function buildOwnerStatusMessage(listing) {
         lines.push(`Código de acceso: ${listing.accessCode}`);
     }
 
-    if (listing.status === "needs_revision") {
-        lines.push("", "Mónica solicitó estos ajustes:", listing.revisionNotes || "Revisa las observaciones en el enlace.");
+    const hasRevisionFeedback = listing.status === "needs_revision"
+        || checklistLabels.length > 0
+        || String(listing.revisionNotes || "").trim();
+
+    if (hasRevisionFeedback) {
+        if (checklistLabels.length > 0) {
+            lines.push("", "Ajustes solicitados:");
+            checklistLabels.forEach((label) => lines.push(`- ${label}`));
+        }
+        if (String(listing.revisionNotes || "").trim()) {
+            lines.push("", "Observaciones:", listing.revisionNotes.trim());
+        }
         lines.push("", `Puedes corregir y reenviar aquí: ${url}`);
+    } else if (listing.status === "approved") {
+        lines.push("", "Tu inmueble fue aprobado. Pronto te contactaremos para los siguientes pasos.");
+        lines.push("", `Consulta tu solicitud aquí: ${url}`);
+    } else if (listing.status === "published") {
+        lines.push("", "Tu inmueble ya fue publicado en nuestro inventario.");
+        lines.push("", `Consulta tu solicitud aquí: ${url}`);
+    } else if (listing.status === "withdrawn") {
+        lines.push("", "Tu inmueble fue retirado del inventario público. Si tienes dudas, contáctanos.");
+        lines.push("", `Referencia de seguimiento: ${url}`);
+    } else if (listing.status === "rejected") {
+        lines.push("", "En este momento no podemos continuar con esta solicitud. Si tienes dudas, contáctanos.");
+        lines.push("", `Referencia de seguimiento: ${url}`);
     } else {
         lines.push("", `Consulta tu solicitud aquí: ${url}`);
     }
 
     return lines.join("\n");
+}
+
+export function buildOwnerRevisionDraftMessage(listing, revisionNotes, revisionChecklist = []) {
+    return buildOwnerStatusMessage({
+        ...listing,
+        status: "needs_revision",
+        revisionNotes,
+        revisionChecklist,
+    });
 }
 
 export function buildOwnerSubmissionMessage(listing) {
@@ -53,7 +94,10 @@ export function buildOwnerSubmissionMessage(listing) {
 
 export function buildOwnerMailto(listing, subjectPrefix = "Tu solicitud de venta") {
     const subject = `${subjectPrefix} · ${listing.id}`;
-    const body = listing.status === "needs_revision"
+    const body = (listing.status === "needs_revision"
+        || listing.status === "rejected"
+        || listing.revisionChecklist?.length
+        || String(listing.revisionNotes || "").trim())
         ? buildOwnerStatusMessage(listing)
         : buildOwnerSubmissionMessage(listing);
     return `mailto:${encodeURIComponent(listing.ownerEmail || "")}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

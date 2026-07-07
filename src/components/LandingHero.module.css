@@ -171,6 +171,8 @@
     width: 100%;
     margin-top: clamp(32px, 5vw, 40px);
     padding-top: clamp(4px, 1vw, 8px);
+    position: relative;
+    z-index: 5;
 }
 
 .content {

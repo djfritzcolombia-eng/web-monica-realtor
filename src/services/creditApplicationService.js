@@ -1,27 +1,32 @@
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { MONICA_CREDIT_EMAIL } from "../config/site";
 import { db } from "../config/firebase";
+import { CREDIT_APP_STATUSES } from "../utils/creditApplicationForm";
 import { buildCreditApplicationPdf } from "../utils/creditApplicationPdf";
+import { formatCOP } from "../utils/housingCreditCalculator";
 
 export async function submitCreditApplication({ form, simulation }) {
     const { blob, fileName, fullName } = buildCreditApplicationPdf({ form, simulation });
 
     const summaryLines = [
-        `Solicitante: ${fullName}`,
+        `Consulta de viabilidad de crédito — ${fullName}`,
         `Documento: ${form.docType} ${form.docNumber}`,
         `Correo: ${form.email}`,
         `Celular: ${form.phone}`,
-        `Producto: ${form.creditProduct}`,
-        `Valor inmueble: ${form.propertyValue}`,
-        `Monto crédito: ${form.loanAmount}`,
-        `Plazo: ${form.termYears} años`,
-        simulation?.propertyValue
-            ? `Simulación: cuota ref. ${simulation.totalMonthly || simulation.monthlyPayment}`
+        `Ocupación: ${form.occupation}`,
+        `Ciudad donde trabaja: ${form.workCity}`,
+        `Ingresos mensuales: ${formatCOP(Number(form.monthlyIncome) || 0)}`,
+        `Monto a solicitar: ${formatCOP(Number(form.loanAmount) || 0)}`,
+        `Cuota inicial disponible: ${formatCOP(Number(form.downPayment) || 0)}`,
+        simulation?.totalMonthly || simulation?.monthlyPayment
+            ? `Simulación: cuota ref. ${formatCOP(simulation.totalMonthly || simulation.monthlyPayment)}`
             : null,
-    ].filter(Boolean);
+        "",
+        "El PDF adjunto contiene el formulario completo con autorizaciones y resumen de simulación.",
+    ].filter((line) => line !== null);
 
     const formData = new FormData();
-    formData.append("_subject", `Solicitud crédito hipotecario — ${fullName}`);
+    formData.append("_subject", `Consulta viabilidad crédito — ${fullName}`);
     formData.append("_template", "table");
     formData.append("_captcha", "false");
     formData.append("name", fullName);
@@ -59,10 +64,14 @@ export async function submitCreditApplication({ form, simulation }) {
                     modality: simulation.modality,
                     annualRateEa: simulation.annualRateEa,
                     totalMonthly: simulation.totalMonthly,
+                    monthlyPayment: simulation.monthlyPayment,
                     requiredIncome: simulation.requiredIncome,
+                    downPayment: simulation.downPayment,
                 }
                 : null,
             applicantName: fullName,
+            adminStatus: CREDIT_APP_STATUSES.pending,
+            adminNotes: "",
             pdfFileName: fileName,
             emailSentTo: MONICA_CREDIT_EMAIL,
             createdAt: serverTimestamp(),

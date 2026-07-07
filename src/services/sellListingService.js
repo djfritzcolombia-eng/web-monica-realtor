@@ -1,5 +1,4 @@
 import {
-    addDoc,
     collection,
     doc,
     getDoc,
@@ -10,7 +9,9 @@ import {
     setDoc,
     updateDoc,
     limit,
+    where,
 } from "firebase/firestore";
+import { inferSearchGroupKeys } from "../utils/sellListingInventory";
 import {
     getDownloadURL,
     ref,
@@ -18,12 +19,14 @@ import {
 } from "firebase/storage";
 import { db, storage } from "../config/firebase";
 import { MONICA_REALTOR_STORE } from "../constants/monicaRealtorStore";
+import { isImageCandidate } from "../utils/normalizePhotoFiles";
 
 export const SELL_LISTING_STATUSES = {
     pending: "pending",
     needs_revision: "needs_revision",
     approved: "approved",
     published: "published",
+    withdrawn: "withdrawn",
     rejected: "rejected",
 };
 
@@ -32,6 +35,7 @@ export const SELL_STATUS_LABELS = {
     needs_revision: "Requiere correcciones",
     approved: "Aprobado",
     published: "Publicado",
+    withdrawn: "Retirado del inventario",
     rejected: "Rechazado",
 };
 
@@ -49,7 +53,9 @@ function sanitizeListingPayload(data) {
         city: String(data.city || "").trim(),
         neighborhood: String(data.neighborhood || "").trim(),
         price: Number(data.price) || 0,
+        priceCurrency: data.priceCurrency === "USD" ? "USD" : "COP",
         adminFee: Number(data.adminFee) || 0,
+        adminFeeCurrency: data.adminFeeCurrency === "USD" ? "USD" : "COP",
         bedrooms: Number(data.bedrooms) || 0,
         bathrooms: Number(data.bathrooms) || 0,
         garages: Number(data.garages) || 0,
@@ -143,30 +149,78 @@ async function resolveListingRef(listingId) {
     return null;
 }
 
+function mapFirebasePermissionError(err, fallback) {
+    const code = String(err?.code || "").toLowerCase();
+    const message = String(err?.message || "").toLowerCase();
+    if (
+        code.includes("permission")
+        || code.includes("unauthorized")
+        || code.includes("denied")
+        || message.includes("insufficient permissions")
+        || message.includes("does not have permission")
+    ) {
+        return new Error(fallback);
+    }
+    return err;
+}
+
+export function formatSellListingError(err, fallback = "No se pudo enviar la solicitud.") {
+    if (!err) return fallback;
+    const mapped = mapFirebasePermissionError(
+        err,
+        "No pudimos completar el envío por permisos del servidor. Recarga la página, verifica tu conexión e intenta de nuevo."
+    );
+    return mapped?.message || fallback;
+}
+
+function resolveImageContentType(file) {
+    if (file?.type?.startsWith("image/")) return file.type;
+    const name = String(file?.name || "").toLowerCase();
+    if (name.endsWith(".png")) return "image/png";
+    if (name.endsWith(".webp")) return "image/webp";
+    if (name.endsWith(".gif")) return "image/gif";
+    if (name.endsWith(".heic")) return "image/heic";
+    if (name.endsWith(".heif")) return "image/heif";
+    if (name.endsWith(".bmp")) return "image/bmp";
+    return "image/jpeg";
+}
+
 export async function uploadSellListingPhotos(listingId, files, storageRoot = STORAGE_ROOT) {
     const uploads = [];
 
     for (let index = 0; index < files.length; index += 1) {
         const file = files[index];
-        if (!file?.type?.startsWith("image/")) continue;
+        if (!isImageCandidate(file)) continue;
 
-        const safeName = String(file.name || `foto-${index + 1}`)
+        const safeName = String(file.name || `foto-${index + 1}.jpg`)
             .replace(/[^\w.-]+/g, "-")
             .slice(0, 80);
         const storagePath = `${storageRoot}/${listingId}/${Date.now()}-${index}-${safeName}`;
         const storageRef = ref(storage, storagePath);
+        const contentType = resolveImageContentType(file);
 
-        await uploadBytes(storageRef, file, {
-            contentType: file.type,
-        });
+        try {
+            await uploadBytes(storageRef, file, {
+                contentType,
+                cacheControl: "public,max-age=31536000",
+            });
+            const url = await getDownloadURL(storageRef);
+            uploads.push({
+                url,
+                storagePath,
+                order: index,
+                name: file.name || safeName,
+            });
+        } catch (err) {
+            throw mapFirebasePermissionError(
+                err,
+                "No se pudieron subir las fotos. Verifica tu conexión e intenta de nuevo. Si persiste, contáctanos por WhatsApp."
+            );
+        }
+    }
 
-        const url = await getDownloadURL(storageRef);
-        uploads.push({
-            url,
-            storagePath,
-            order: index,
-            name: file.name,
-        });
+    if (!uploads.length && files.length > 0) {
+        throw new Error("No se pudieron procesar las fotos seleccionadas. Usa JPG o PNG desde tu galería.");
     }
 
     return uploads;
@@ -188,33 +242,41 @@ export async function submitSellListing(formData, photoFiles = []) {
         throw new Error("Agrega al menos una foto del inmueble.");
     }
 
-    await ensureMonicaRealtorStore();
+    try {
+        await ensureMonicaRealtorStore();
+    } catch {
+        // No bloquear el envío si el doc de configuración no se puede actualizar.
+    }
 
     const accessCode = generateAccessCode();
+    const docRef = doc(collection(db, STORE_COLLECTION));
+    const listingId = docRef.id;
 
-    const docRef = await addDoc(collection(db, STORE_COLLECTION), {
-        ...withStoreMetadata(payload),
-        status: SELL_LISTING_STATUSES.pending,
-        photos: [],
-        adminNotes: "",
-        revisionNotes: "",
-        revisionChecklist: [],
-        accessCode,
-        reviewedAt: null,
-        reviewedBy: "",
-        publishedAt: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-    });
+    const photos = await uploadSellListingPhotos(listingId, photoFiles, STORAGE_ROOT);
 
-    const photos = await uploadSellListingPhotos(docRef.id, photoFiles, STORAGE_ROOT);
+    try {
+        await setDoc(docRef, {
+            ...withStoreMetadata(payload),
+            status: SELL_LISTING_STATUSES.pending,
+            photos,
+            adminNotes: "",
+            revisionNotes: "",
+            revisionChecklist: [],
+            accessCode,
+            reviewedAt: null,
+            reviewedBy: "",
+            publishedAt: null,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        });
+    } catch (err) {
+        throw mapFirebasePermissionError(
+            err,
+            "No se pudo guardar la solicitud. Intenta de nuevo en unos minutos o contáctanos por WhatsApp."
+        );
+    }
 
-    await updateDoc(docRef, {
-        photos,
-        updatedAt: serverTimestamp(),
-    });
-
-    return { id: docRef.id, photos, storeName: MONICA_REALTOR_STORE.name, accessCode };
+    return { id: listingId, photos, storeName: MONICA_REALTOR_STORE.name, accessCode };
 }
 
 export async function lookupSellListing(listingId, credentials = {}) {
@@ -232,6 +294,32 @@ export async function fetchSellListingById(listingId) {
     const resolved = await resolveListingRef(listingId);
     if (!resolved) return null;
     return mapListingDoc(resolved.snap, resolved.collectionName);
+}
+
+export async function fetchPublishedSellListings(max = 100) {
+    const [primarySnap, legacySnap] = await Promise.all([
+        getDocs(query(
+            collection(db, STORE_COLLECTION),
+            where("status", "==", SELL_LISTING_STATUSES.published),
+            limit(max)
+        )),
+        getDocs(query(
+            collection(db, LEGACY_COLLECTION),
+            where("status", "==", SELL_LISTING_STATUSES.published),
+            limit(max)
+        )),
+    ]);
+
+    const merged = new Map();
+
+    legacySnap.docs.forEach((item) => {
+        merged.set(item.id, mapListingDoc(item, LEGACY_COLLECTION));
+    });
+    primarySnap.docs.forEach((item) => {
+        merged.set(item.id, mapListingDoc(item, STORE_COLLECTION));
+    });
+
+    return [...merged.values()];
 }
 
 export async function fetchSellListings(max = 100) {
@@ -277,6 +365,7 @@ export async function updateSellListingReview(listingId, update, adminUser = "")
 
     if (update.status === SELL_LISTING_STATUSES.approved
         || update.status === SELL_LISTING_STATUSES.published
+        || update.status === SELL_LISTING_STATUSES.withdrawn
         || update.status === SELL_LISTING_STATUSES.needs_revision
         || update.status === SELL_LISTING_STATUSES.rejected) {
         payload.reviewedAt = serverTimestamp();
@@ -284,7 +373,15 @@ export async function updateSellListingReview(listingId, update, adminUser = "")
     }
 
     if (update.status === SELL_LISTING_STATUSES.published) {
+        const listing = mapListingDoc(resolved.snap, resolved.collectionName);
+        const mergedListing = { ...listing, ...update };
         payload.publishedAt = serverTimestamp();
+        payload.searchGroupKeys = inferSearchGroupKeys(mergedListing);
+        payload.inventoryId = `store-${listingId}`;
+    }
+
+    if (update.status === SELL_LISTING_STATUSES.withdrawn) {
+        payload.withdrawnAt = serverTimestamp();
     }
 
     await updateDoc(resolved.ref, payload);
@@ -318,14 +415,21 @@ export async function resubmitSellListing(listingId, formData, photoFiles = [], 
         throw new Error("Agrega al menos una foto del inmueble.");
     }
 
-    await updateDoc(resolved.ref, {
-        ...withStoreMetadata(payload),
-        photos,
-        status: SELL_LISTING_STATUSES.pending,
-        revisionNotes: "",
-        revisionChecklist: [],
-        updatedAt: serverTimestamp(),
-    });
+    try {
+        await updateDoc(resolved.ref, {
+            ...withStoreMetadata(payload),
+            photos,
+            status: SELL_LISTING_STATUSES.pending,
+            revisionNotes: "",
+            revisionChecklist: [],
+            updatedAt: serverTimestamp(),
+        });
+    } catch (err) {
+        throw mapFirebasePermissionError(
+            err,
+            "No se pudieron guardar las correcciones. Intenta de nuevo o contáctanos por WhatsApp."
+        );
+    }
 
     return { id: listingId, photos };
 }

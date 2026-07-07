@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import AdminLoadingState from "../components/admin/AdminLoadingState";
+import AdminShell from "../components/admin/AdminShell";
 import {
     fetchSessionById,
     fetchSessionEvents,
@@ -7,7 +8,6 @@ import {
     formatFirestoreDate,
     formatUbicacion,
 } from "../services/adminData";
-import { getAdminUser, logoutAdmin } from "../services/adminAuth";
 import {
     buildEventSummaryEs,
     getActionEs,
@@ -156,8 +156,6 @@ function EventCard({ event }) {
 }
 
 export default function AdminDashboard() {
-    const navigate = useNavigate();
-    const adminUser = getAdminUser();
     const [sessions, setSessions] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
     const [selectedSession, setSelectedSession] = useState(null);
@@ -208,40 +206,16 @@ export default function AdminDashboard() {
         }
     }, [selectedId, loadSessionDetail]);
 
-    const handleLogout = () => {
-        logoutAdmin();
-        navigate("/admin", { replace: true });
-    };
-
     const totalEvents = sessions.reduce((sum, s) => sum + (s.metrics?.eventCount ?? 0), 0);
     const totalSearches = sessions.reduce((sum, s) => sum + (s.metrics?.searches ?? 0), 0);
     const returningCount = sessions.filter((s) => s.isReturning).length;
 
     return (
-        <div className={styles.adminPage}>
-            <header className={styles.header}>
-                <div className={styles.headerBrand}>
-                    <div className={styles.headerLogo}>MF</div>
-                    <div>
-                        <h1 className={styles.headerTitle}>Panel de analítica</h1>
-                        <p className={styles.headerMeta}>
-                            Conectado como <strong>{adminUser?.usuario || "admin"}</strong>
-                        </p>
-                    </div>
-                </div>
-                <div className={styles.headerActions}>
-                    <Link to="/admin/vender" className={styles.btnGhost}>Revisar ventas</Link>
-                    <button type="button" className={styles.btnGhost} onClick={loadSessions}>
-                        ↻ Actualizar
-                    </button>
-                    <button type="button" className={styles.btnGhost} onClick={handleLogout}>
-                        Salir
-                    </button>
-                </div>
-            </header>
-
-            {error && <p className={styles.errorBanner}>{error}</p>}
-
+        <AdminShell
+            title="Analítica del sitio"
+            onRefresh={loadSessions}
+            error={error}
+        >
             <div className={styles.statsBar}>
                 <div className={styles.statCard}>
                     <span className={styles.statLabel}>Sesiones</span>
@@ -269,7 +243,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className={styles.sessionsScroll}>
                     {loadingSessions ? (
-                        <p className={styles.emptyState}>Cargando sesiones…</p>
+                        <AdminLoadingState label="Cargando sesiones…" />
                     ) : sessions.length === 0 ? (
                         <p className={styles.emptyState}>No hay sesiones registradas aún.</p>
                     ) : (
@@ -343,7 +317,7 @@ export default function AdminDashboard() {
                                 {events.length} acciones registradas
                             </p>
                             {loadingEvents ? (
-                                <p className={styles.emptyState}>Cargando eventos…</p>
+                                <AdminLoadingState label="Cargando eventos…" />
                             ) : events.length === 0 ? (
                                 <p className={styles.emptyState}>Esta sesión no tiene eventos.</p>
                             ) : (
@@ -358,6 +332,6 @@ export default function AdminDashboard() {
                     </div>
                 </main>
             </div>
-        </div>
+        </AdminShell>
     );
 }

@@ -12,7 +12,7 @@ function strokeClass(phase, stylesRef) {
     return phase === "draw" ? stylesRef.strokeDraw : stylesRef.strokeLoop;
 }
 
-export default function HouseLineLoader({ label = "Cargando propiedades…", compact = false }) {
+export default function HouseLineLoader({ label = "Cargando propiedades…", compact = false, className = "" }) {
     const [phase, setPhase] = useState("draw");
 
     useEffect(() => {
@@ -24,7 +24,7 @@ export default function HouseLineLoader({ label = "Cargando propiedades…", com
 
     return (
         <div
-            className={`${styles.wrap} ${compact ? styles.wrapCompact : ""}`}
+            className={`${styles.wrap} ${compact ? styles.wrapCompact : ""} ${className}`.trim()}
             role="status"
             aria-live="polite"
             aria-label={label}

@@ -1,0 +1,249 @@
+.reviewShell {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.reviewHeader {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.reviewTitle {
+    margin: 0;
+    font-size: 1.35rem;
+    color: #3a332c;
+}
+
+.reviewMeta {
+    margin: 6px 0 0;
+    font-size: 0.84rem;
+    color: #6e6259;
+}
+
+.statusPill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #edf7f4;
+    color: #245049;
+    border: 1px solid #b8ddd2;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.viewToggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.viewToggleBtn {
+    appearance: none;
+    border: 1.5px solid #cfc2b5;
+    background: #fff;
+    color: #3a332c;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.viewToggleBtnActive {
+    background: #3a332c;
+    border-color: #3a332c;
+    color: #fff;
+}
+
+.gapsBanner {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #fff8f0;
+    border: 1px solid #e6c8b0;
+    color: #7a4d32;
+    font-size: 0.84rem;
+}
+
+.gapsBanner ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+}
+
+.readForm {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.readValue {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #e6dace;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #fff;
+    color: #3a332c;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.45;
+}
+
+.readValueMuted {
+    color: #6e6259;
+}
+
+.fieldMissing .readValue {
+    border-color: #e6a8a8;
+    background: #fff8f8;
+}
+
+.fieldMissing span {
+    color: #b00020;
+    font-weight: 700;
+}
+
+.fieldWarning .readValue {
+    border-color: #e6c8b0;
+    background: #fffaf5;
+}
+
+.previewWrap {
+    border: 1px solid #e6dace;
+    border-radius: 16px;
+    padding: 16px;
+    background: #faf9f6;
+}
+
+.previewTitle {
+    margin: 0 0 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6e6259;
+}
+
+.amenityOn {
+    opacity: 1;
+}
+
+.amenityOff {
+    opacity: 0.45;
+}
+
+.actionFooter {
+    margin-top: 8px;
+    padding-top: 20px;
+    border-top: 2px solid #e6dace;
+}
+
+.confirmBox {
+    margin-bottom: 14px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #faf9f6;
+    border: 1px solid #e6dace;
+}
+
+.confirmBox p {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+    color: #3a332c;
+}
+
+.confirmActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.shareSequence {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.shareSequenceTitle {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6e6259;
+}
+
+.shareStepList {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+}
+
+.shareStep {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #e6dace;
+}
+
+.shareStepNum {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #3a332c;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+
+.shareStepText {
+    flex: 1 1 180px;
+    font-size: 0.84rem;
+    color: #3a332c;
+}
+
+.adminOnlyBlock {
+    border: 1px dashed #d8a48f;
+    border-radius: 14px;
+    padding: 16px;
+    background: rgba(255, 248, 242, 0.5);
+}
+
+.adminOnlyTitle {
+    margin: 0 0 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9a5b3d;
+}
+
+.adminTextarea {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-family: inherit;
+    font-size: 0.88rem;
+    box-sizing: border-box;
+}

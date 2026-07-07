@@ -17,7 +17,6 @@ import {
     parseCreditSimulatorFromSearch,
     saveCreditSession,
 } from "../utils/creditSimulatorDeepLink";
-import { formatCOP } from "../utils/housingCreditCalculator";
 import {
     ALL_CREDIT_SEARCH_KEYS,
     ALL_CREDIT_SEARCH_LABELS,
@@ -26,6 +25,8 @@ import {
     MEDELLIN_CITY_ID,
 } from "../constants/searchZones";
 import { dedupeWasiItems } from "../utils/wasiAggregateFetch";
+import { fetchPublishedSellListings } from "../services/sellListingService";
+import { mapPublishedListingsForScope } from "../utils/sellListingInventory";
 import ProfileHeader from "../components/ProfileHeader";
 import HouseLineLoader from "../components/HouseLineLoader";
 import SiteTopBar from "../components/SiteTopBar";
@@ -37,6 +38,12 @@ import { paginationStyles, bandStyles } from "./SRHome.styles";
 import { postRequest } from "../services/api";
 import { buildSearchMetadata } from "../utils/eventMetadata";
 import { filterPropertiesByQuery } from "../utils/filterPropertiesByQuery";
+import {
+    EMPTY_ADVANCED_FILTER,
+    filterPropertiesByAdvanced,
+    hasActiveAdvancedFilter,
+    removeAdvancedFilterKey,
+} from "../utils/propertyAdvancedFilters";
 import { describeSiteSearchResult, parseSiteSearch } from "../utils/siteSearchEngine";
 import "./SRHome.animations.css";
 import landingStyles from "../components/LandingHero.module.css";
@@ -159,6 +166,7 @@ export default function SRHome() {
         totalItems: 0,
     });
     const [filteredPool, setFilteredPool] = useState([]);
+    const [advancedFilter, setAdvancedFilter] = useState(EMPTY_ADVANCED_FILTER);
     const [textSearchFilter, setTextSearchFilter] = useState(null);
     const [siteSearchLabel, setSiteSearchLabel] = useState("");
 
@@ -194,6 +202,7 @@ export default function SRHome() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const initialUrlSearchDone = useRef(false);
+    const inventoryPoolRef = useRef([]);
 
     useEffect(() => {
         if (!creditSimulatorBoot) return;
@@ -259,6 +268,59 @@ export default function SRHome() {
         if (!filter) return items;
         return filterPropertiesByCreditBudget(items, filter);
     };
+
+    const applyAllClientFilters = useCallback((items, {
+        creditFilter = creditBudgetFilter,
+        textFilter = textSearchFilter,
+        advanced = advancedFilter,
+    } = {}) => {
+        let filtered = applyCreditBudgetToProperties(items, creditFilter);
+        if (textFilter) {
+            filtered = filterPropertiesByQuery(filtered, textFilter);
+        }
+        filtered = filterPropertiesByAdvanced(filtered, advanced);
+        return filtered;
+    }, [creditBudgetFilter, textSearchFilter, advancedFilter]);
+
+    const publishFilteredResults = useCallback((rawItems, {
+        page = 1,
+        paginationPatch = {},
+        creditFilter = creditBudgetFilter,
+        textFilter = textSearchFilter,
+        advanced = advancedFilter,
+    } = {}) => {
+        const useLocalPool = Boolean(
+            creditFilter
+            || textFilter
+            || hasActiveAdvancedFilter(advanced)
+        );
+        const filtered = applyAllClientFilters(rawItems, { creditFilter, textFilter, advanced });
+        inventoryPoolRef.current = rawItems;
+        setFilteredCount(filtered.length);
+        const perPage = pagination.perPage;
+        const targetPage = paginationPatch.currentPage ?? page;
+
+        if (useLocalPool) {
+            setFilteredPool(filtered);
+            const start = (targetPage - 1) * perPage;
+            setWasiProps(filtered.slice(start, start + perPage));
+            setPagination((prev) => ({
+                ...prev,
+                ...paginationPatch,
+                currentPage: targetPage,
+                totalItems: filtered.length,
+                totalPages: Math.max(1, Math.ceil(filtered.length / perPage)),
+            }));
+            return;
+        }
+
+        setFilteredPool([]);
+        setWasiProps(filtered);
+        setPagination((prev) => ({
+            ...prev,
+            ...paginationPatch,
+        }));
+    }, [advancedFilter, applyAllClientFilters, creditBudgetFilter, pagination.perPage, textSearchFilter]);
 
     // Utilidades para mapear y extraer datos de WASI
     function mapWasiItem(raw) {
@@ -366,44 +428,41 @@ export default function SRHome() {
         zones = [],
         creditFilterOverride = undefined,
         textFilterOverride = undefined,
+        advancedFilterOverride = undefined,
     }) => {
         const activeCreditFilter = creditFilterOverride !== undefined ? creditFilterOverride : creditBudgetFilter;
         const activeTextFilter = textFilterOverride !== undefined ? textFilterOverride : textSearchFilter;
-        const useLocalPool = Boolean(activeCreditFilter || activeTextFilter);
+        const activeAdvancedFilter = advancedFilterOverride !== undefined ? advancedFilterOverride : advancedFilter;
+        const useLocalPool = Boolean(
+            activeCreditFilter
+            || activeTextFilter
+            || hasActiveAdvancedFilter(activeAdvancedFilter)
+        );
         const fetchSize = useLocalPool
             ? (activeTextFilter ? SITE_SEARCH_FETCH_POOL : CREDIT_FILTER_FETCH_POOL)
             : clampPerPage(pagination.perPage);
         const apiPage = useLocalPool ? 1 : page;
 
         const publishResults = (items, paginationPatch) => {
-            let filtered = applyCreditBudgetToProperties(items, activeCreditFilter);
-            if (activeTextFilter) {
-                filtered = filterPropertiesByQuery(filtered, activeTextFilter);
-            }
-            setFilteredCount(filtered.length);
-            const perPage = pagination.perPage;
-            const targetPage = paginationPatch.currentPage ?? page;
+            publishFilteredResults(items, {
+                page,
+                paginationPatch,
+                creditFilter: activeCreditFilter,
+                textFilter: activeTextFilter,
+                advanced: activeAdvancedFilter,
+            });
+        };
 
-            if (useLocalPool) {
-                setFilteredPool(filtered);
-                const start = (targetPage - 1) * perPage;
-                setWasiProps(filtered.slice(start, start + perPage));
-                setPagination((prev) => ({
-                    ...prev,
-                    ...paginationPatch,
-                    currentPage: targetPage,
-                    totalItems: filtered.length,
-                    totalPages: Math.max(1, Math.ceil(filtered.length / perPage)),
-                }));
-                return;
+        const finalizeAndPublish = async (aggregated, scope, paginationPatch) => {
+            let merged = aggregated;
+            try {
+                const published = await fetchPublishedSellListings();
+                const storeItems = mapPublishedListingsForScope(published, scope);
+                merged = dedupeWasiItems([...storeItems, ...aggregated]);
+            } catch {
+                merged = aggregated;
             }
-
-            setFilteredPool([]);
-            setWasiProps(filtered);
-            setPagination((prev) => ({
-                ...prev,
-                ...paginationPatch,
-            }));
+            publishResults(itemsForPublish(merged), paginationPatch);
         };
 
         const itemsForPublish = (aggregated) =>
@@ -481,7 +540,7 @@ export default function SRHome() {
                     aggregated = aggregated.concat(r.items || []);
                 });
                 aggregated = dedupeWasiItems(aggregated);
-                publishResults(itemsForPublish(aggregated), {
+                await finalizeAndPublish(aggregated, { cityIds, zones }, {
                     currentPage: page,
                     totalItems: activeCreditFilter ? aggregated.length : aggregated.length,
                     totalPages: activeCreditFilter
@@ -521,7 +580,7 @@ export default function SRHome() {
                     seen.add(key);
                     return true;
                 });
-                publishResults(itemsForPublish(aggregated), {
+                await finalizeAndPublish(aggregated, { cityIds: [], zones }, {
                     currentPage: page,
                     totalItems: activeCreditFilter || activeTextFilter ? aggregated.length : totalItemsSum,
                     totalPages: activeCreditFilter || activeTextFilter
@@ -538,7 +597,7 @@ export default function SRHome() {
                         { id_city: cityIds[0] },
                         clampPerPage(activeTextFilter ? SITE_SEARCH_PER_CITY : fetchSize)
                     );
-                    publishResults(itemsForPublish(items), {
+                    await finalizeAndPublish(items, { cityIds, zones: [] }, {
                         currentPage: page,
                         totalPages: activeCreditFilter || activeTextFilter
                             ? Math.max(1, Math.ceil(items.length / pagination.perPage))
@@ -574,7 +633,7 @@ export default function SRHome() {
                     seen.add(key);
                     return true;
                 });
-                publishResults(itemsForPublish(aggregated), {
+                await finalizeAndPublish(aggregated, { cityIds, zones: [] }, {
                     currentPage: page,
                     totalItems: activeCreditFilter || activeTextFilter ? aggregated.length : totalItemsSum,
                     totalPages: activeCreditFilter || activeTextFilter
@@ -590,7 +649,7 @@ export default function SRHome() {
             if (result?.success) {
                 const arr = extractWasiArray(result.data);
                 const mapped = arr.map(mapWasiItem).filter(Boolean);
-                publishResults(itemsForPublish(mapped), {
+                await finalizeAndPublish(mapped, { cityIds: [MEDELLIN_ID], zones: [] }, {
                     currentPage: page,
                     totalPages: activeCreditFilter
                         ? Math.max(1, Math.ceil(mapped.length / pagination.perPage))
@@ -684,6 +743,8 @@ export default function SRHome() {
         setWasiError(null);
         setLastQuery(null);
         setFilteredPool([]);
+        inventoryPoolRef.current = [];
+        setAdvancedFilter(EMPTY_ADVANCED_FILTER);
         setTextSearchFilter(null);
         setSiteSearchLabel("");
         setPagination({
@@ -847,7 +908,7 @@ export default function SRHome() {
             }),
         });
 
-        if ((creditBudgetFilter || textSearchFilter) && filteredPool.length > 0) {
+        if ((creditBudgetFilter || textSearchFilter || hasActiveAdvancedFilter(advancedFilter)) && filteredPool.length > 0) {
             const perPage = pagination.perPage;
             const start = (newPage - 1) * perPage;
             setWasiProps(filteredPool.slice(start, start + perPage));
@@ -904,7 +965,68 @@ export default function SRHome() {
         }, 100);
     };
 
+    const handleAdvancedFilterApply = (nextFilter) => {
+        setAdvancedFilter(nextFilter);
+        track("filter_applied", {
+            action: "advanced_property_filters",
+            filters: nextFilter,
+        });
 
+        if (!filterApplied) return;
+
+        const pool = inventoryPoolRef.current;
+        if (pool.length > 0) {
+            publishFilteredResults(pool, {
+                page: 1,
+                paginationPatch: { currentPage: 1 },
+                advanced: nextFilter,
+            });
+            setLastQuery((prev) => (prev ? { ...prev, page: 1 } : prev));
+            return;
+        }
+
+        if (lastQuery) {
+            fetchWasiProperties({
+                page: 1,
+                cityIds: lastQuery.cityIds || [],
+                zones: lastQuery.zones || [],
+                advancedFilterOverride: nextFilter,
+            });
+            setLastQuery({ ...lastQuery, page: 1 });
+        }
+    };
+
+    const handleAdvancedFilterChipRemove = (chipKey) => {
+        const nextFilter = removeAdvancedFilterKey(advancedFilter, chipKey);
+        setAdvancedFilter(nextFilter);
+        track("filter_applied", {
+            action: "remove_advanced_filter_chip",
+            chip: chipKey,
+        });
+
+        if (!filterApplied) return;
+
+        const pool = inventoryPoolRef.current;
+        if (pool.length > 0) {
+            publishFilteredResults(pool, {
+                page: 1,
+                paginationPatch: { currentPage: 1 },
+                advanced: nextFilter,
+            });
+            setLastQuery((prev) => (prev ? { ...prev, page: 1 } : prev));
+            return;
+        }
+
+        if (lastQuery) {
+            fetchWasiProperties({
+                page: 1,
+                cityIds: lastQuery.cityIds || [],
+                zones: lastQuery.zones || [],
+                advancedFilterOverride: nextFilter,
+            });
+            setLastQuery({ ...lastQuery, page: 1 });
+        }
+    };
 
     // --- Responsive: detectar móvil y manejar drawer ---
     useEffect(() => {
@@ -1006,6 +1128,9 @@ export default function SRHome() {
                                             creditExpandOpen={creditExpandOpen}
                                             onCreditExpandClose={() => setCreditExpandOpen(false)}
                                             creditExpandData={creditExpandData}
+                                            advancedFilter={advancedFilter}
+                                            onAdvancedFilterApply={handleAdvancedFilterApply}
+                                            onAdvancedFilterChipRemove={handleAdvancedFilterChipRemove}
                                             style={{ width: "100%" }}
                                         />
                                     </section>
@@ -1041,6 +1166,9 @@ export default function SRHome() {
                                                 creditExpandOpen={creditExpandOpen}
                                                 onCreditExpandClose={() => setCreditExpandOpen(false)}
                                                 creditExpandData={creditExpandData}
+                                                advancedFilter={advancedFilter}
+                                                onAdvancedFilterApply={handleAdvancedFilterApply}
+                                                onAdvancedFilterChipRemove={handleAdvancedFilterChipRemove}
                                             />
                                         </div>
                                     </div>

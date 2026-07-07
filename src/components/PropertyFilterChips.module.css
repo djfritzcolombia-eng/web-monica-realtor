@@ -1,0 +1,44 @@
+.wrap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    padding-top: 2px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px 6px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(58, 51, 44, 0.16);
+    background: rgba(255, 255, 255, 0.45);
+    color: var(--color-topo-deep, #3a332c);
+    font-family: var(--font-alt), sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    line-height: 1.2;
+}
+
+.chip:hover {
+    border-color: var(--color-emerald-muted, #2d5c54);
+    color: var(--color-emerald-muted, #2d5c54);
+    background: rgba(255, 255, 255, 0.85);
+}
+
+.remove {
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.55;
+}
+
+.chip:hover .remove {
+    opacity: 1;
+}

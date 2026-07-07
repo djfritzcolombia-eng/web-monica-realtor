@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import GlobalReset from "../components/GlobalReset";
 import SiteTopBar from "../components/SiteTopBar";
 import ProfileHeader from "../components/ProfileHeader";
 import SellListingAccessGate from "../components/SellListingAccessGate";
 import SellListingSuccessPanel from "../components/SellListingSuccessPanel";
-import SellListingTracker from "../components/SellListingTracker";
+import CurrencyAmountField from "../components/CurrencyAmountField";
 import AppVersion from "../components/AppVersion";
 import FloatingSocial from "../components/FloatingSocial";
 import {
@@ -14,6 +14,7 @@ import {
     SELL_LISTING_STATUSES,
     SELL_STATUS_LABELS,
     submitSellListing,
+    formatSellListingError,
 } from "../services/sellListingService";
 import {
     fieldNeedsHighlight,
@@ -22,36 +23,17 @@ import {
     getRevisionLabels,
 } from "../constants/sellListingRevision";
 import { buildSellListingUrl } from "../utils/sellListingLinks";
+import { normalizePhotoFiles } from "../utils/normalizePhotoFiles";
 import {
     isListingVerified,
     readSellListingTracking,
     saveSellListingTracking,
 } from "../utils/sellListingTracking";
 import { MONICA_REALTOR_STORE } from "../constants/monicaRealtorStore";
+import { AMENITY_OPTIONS, PROPERTY_TYPES, listingToForm } from "../utils/sellListingForm";
 import { styles } from "../styles/styles";
 import uxStyles from "../components/SellListingUx.module.css";
 import stylesLocal from "./SellPropertyPage.module.css";
-
-const PROPERTY_TYPES = [
-    "Apartamento",
-    "Casa",
-    "Apartaestudio",
-    "Local comercial",
-    "Lote",
-    "Bodega",
-    "Oficina",
-];
-
-const AMENITY_OPTIONS = [
-    "Admite mascotas",
-    "Baño auxiliar",
-    "Clósets",
-    "Transporte público cercano",
-    "Parqueadero visitantes",
-    "Piscina",
-    "Gimnasio",
-    "Balcon",
-];
 
 const EMPTY_FORM = {
     ownerName: "",
@@ -64,7 +46,9 @@ const EMPTY_FORM = {
     city: "",
     neighborhood: "",
     price: "",
+    priceCurrency: "COP",
     adminFee: "",
+    adminFeeCurrency: "COP",
     bedrooms: "",
     bathrooms: "",
     garages: "",
@@ -74,30 +58,6 @@ const EMPTY_FORM = {
     year: "",
     amenities: [],
 };
-
-function listingToForm(listing) {
-    return {
-        ownerName: listing.ownerName || "",
-        ownerEmail: listing.ownerEmail || "",
-        ownerPhone: listing.ownerPhone || "",
-        propertyType: listing.propertyType || "Apartamento",
-        title: listing.title || "",
-        description: listing.description || "",
-        address: listing.address || "",
-        city: listing.city || "",
-        neighborhood: listing.neighborhood || "",
-        price: listing.price ? String(listing.price) : "",
-        adminFee: listing.adminFee ? String(listing.adminFee) : "",
-        bedrooms: listing.bedrooms ? String(listing.bedrooms) : "",
-        bathrooms: listing.bathrooms ? String(listing.bathrooms) : "",
-        garages: listing.garages ? String(listing.garages) : "",
-        area: listing.area ? String(listing.area) : "",
-        stratum: listing.stratum ? String(listing.stratum) : "",
-        floor: listing.floor ? String(listing.floor) : "",
-        year: listing.year ? String(listing.year) : "",
-        amenities: listing.amenities || [],
-    };
-}
 
 function applyListingState(listing, setters) {
     setters.setForm(listingToForm(listing));
@@ -127,6 +87,8 @@ export default function SellPropertyPage() {
     const [revisionChecklist, setRevisionChecklist] = useState([]);
     const [accessCode, setAccessCode] = useState("");
     const [accessGranted, setAccessGranted] = useState(false);
+    const galleryInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
 
     const isRevisionMode = listingStatus === SELL_LISTING_STATUSES.needs_revision;
     const isLockedReview = Boolean(editId) && listingStatus && !isRevisionMode && accessGranted;
@@ -223,10 +185,20 @@ export default function SellPropertyPage() {
         });
     };
 
-    const handlePhotoChange = (event) => {
-        const files = Array.from(event.target.files || []);
-        setPhotos((prev) => [...prev, ...files].slice(0, 12));
-        event.target.value = "";
+    const handlePhotoChange = async (event) => {
+        try {
+            const files = await normalizePhotoFiles(event.target.files);
+            if (!files.length) {
+                setError("No se pudieron leer las fotos seleccionadas. Prueba con JPG o PNG desde tu galería.");
+                return;
+            }
+            setError("");
+            setPhotos((prev) => [...prev, ...files].slice(0, 12));
+        } catch {
+            setError("No se pudieron procesar las fotos. Intenta con otra imagen.");
+        } finally {
+            event.target.value = "";
+        }
     };
 
     const removeNewPhoto = (index) => {
@@ -264,7 +236,9 @@ export default function SellPropertyPage() {
             const payload = {
                 ...form,
                 price: Number(form.price),
+                priceCurrency: form.priceCurrency,
                 adminFee: Number(form.adminFee || 0),
+                adminFeeCurrency: form.adminFeeCurrency,
                 bedrooms: Number(form.bedrooms || 0),
                 bathrooms: Number(form.bathrooms || 0),
                 garages: Number(form.garages || 0),
@@ -324,7 +298,7 @@ export default function SellPropertyPage() {
                 setPhotos([]);
             }
         } catch (err) {
-            setError(err?.message || "No se pudo enviar la solicitud.");
+            setError(formatSellListingError(err));
         } finally {
             setSubmitting(false);
         }
@@ -527,25 +501,23 @@ export default function SellPropertyPage() {
                                             onChange={(e) => updateField("city", e.target.value)}
                                         />
                                     </label>
-                                    <label className={fieldClass("price")}>
-                                        <span>Precio de venta (COP) *</span>
-                                        <input
-                                            required
-                                            type="number"
-                                            min="1"
-                                            value={form.price}
-                                            onChange={(e) => updateField("price", e.target.value)}
-                                        />
-                                    </label>
-                                    <label className={fieldClass("adminFee")}>
-                                        <span>Administración (COP)</span>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={form.adminFee}
-                                            onChange={(e) => updateField("adminFee", e.target.value)}
-                                        />
-                                    </label>
+                                    <CurrencyAmountField
+                                        label="Precio de venta *"
+                                        value={Number(form.price) || 0}
+                                        currency={form.priceCurrency}
+                                        required
+                                        highlight={fieldNeedsHighlight("price", highlightedFields)}
+                                        onValueChange={(value) => updateField("price", value ? String(value) : "")}
+                                        onCurrencyChange={(value) => updateField("priceCurrency", value)}
+                                    />
+                                    <CurrencyAmountField
+                                        label="Administración"
+                                        value={Number(form.adminFee) || 0}
+                                        currency={form.adminFeeCurrency}
+                                        highlight={fieldNeedsHighlight("adminFee", highlightedFields)}
+                                        onValueChange={(value) => updateField("adminFee", value ? String(value) : "")}
+                                        onCurrencyChange={(value) => updateField("adminFeeCurrency", value)}
+                                    />
                                     <label className={fieldClass("bedrooms")}>
                                         <span>Habitaciones</span>
                                         <input type="number" min="0" value={form.bedrooms} onChange={(e) => updateField("bedrooms", e.target.value)} />
@@ -610,15 +582,43 @@ export default function SellPropertyPage() {
                                     </div>
                                 )}
 
-                                <label className={stylesLocal.uploadBox}>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={handlePhotoChange}
-                                    />
-                                    <span>{isRevisionMode ? "Agregar fotos faltantes" : "Seleccionar fotos"}</span>
-                                </label>
+                                <div className={stylesLocal.uploadActions}>
+                                    <button
+                                        type="button"
+                                        className={stylesLocal.uploadActionBtn}
+                                        onClick={() => galleryInputRef.current?.click()}
+                                    >
+                                        Elegir de galería
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={stylesLocal.uploadActionBtn}
+                                        onClick={() => cameraInputRef.current?.click()}
+                                    >
+                                        Tomar foto
+                                    </button>
+                                </div>
+
+                                <input
+                                    ref={galleryInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                                    multiple
+                                    className={stylesLocal.hiddenInput}
+                                    onChange={handlePhotoChange}
+                                />
+                                <input
+                                    ref={cameraInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className={stylesLocal.hiddenInput}
+                                    onChange={handlePhotoChange}
+                                />
+
+                                <p className={stylesLocal.help}>
+                                    {photos.length + existingPhotos.length}/12 fotos seleccionadas
+                                </p>
 
                                 {photoPreviewUrls.length > 0 && (
                                     <div className={stylesLocal.photoGrid}>
