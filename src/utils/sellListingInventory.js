@@ -3,7 +3,7 @@ import {
     CREDIT_SEARCH_ZONES,
     MEDELLIN_CITY_ID,
 } from "../constants/searchZones";
-import { ORIENTE_FALLBACK_CITIES } from "../services/wasiLocationService";
+import { ORIENTE_ANTIOQUENO_CITIES, ORIENTE_CITY_ID_SET } from "../constants/orienteAntioqueno";
 import { formatSellCurrencyDisplay } from "./sellListingCurrency";
 
 const norm = (s = "") =>
@@ -102,7 +102,7 @@ function listingMatchesOrienteCityIds(listing = {}, cityIds = []) {
     const listingCity = norm(listing.city || listing.zone || "");
     if (!listingCity) return false;
     return cityIds.some((id) => {
-        const city = ORIENTE_FALLBACK_CITIES.find((item) => item.id_city === String(id));
+        const city = ORIENTE_ANTIOQUENO_CITIES.find((item) => item.id_city === String(id));
         if (!city) return false;
         const cityNorm = norm(city.label);
         return listingCity.includes(cityNorm) || cityNorm.includes(listingCity);
@@ -112,7 +112,7 @@ function listingMatchesOrienteCityIds(listing = {}, cityIds = []) {
 export function listingMatchesSearchScope(property, { cityIds = [], zones = [] } = {}) {
     const keys = property.searchGroupKeys || [];
     const propertyCities = propertyCityIds(property);
-    const orienteIds = new Set(ORIENTE_FALLBACK_CITIES.map((city) => city.id_city));
+    const orienteIds = ORIENTE_CITY_ID_SET;
     const isOrienteSearch = cityIds.length > 0 && cityIds.every((id) => orienteIds.has(String(id)));
 
     if (isOrienteSearch && listingMatchesOrienteCityIds(property, cityIds)) {

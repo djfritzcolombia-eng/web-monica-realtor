@@ -58,7 +58,7 @@
     padding: 6px 0;
     z-index: 1100;
     list-style: none;
-    max-height: min(360px, 58vh);
+    max-height: min(420px, 70vh);
     overflow-y: auto;
     overflow-x: hidden;
     animation: fadeIn .18s cubic-bezier(.4, 0, .2, 1);
@@ -89,9 +89,46 @@
 }
 
 .orienteGroup {
-    border-top: 1px solid var(--border-subtle, #e8e4df);
-    margin-top: 4px;
-    padding-top: 4px;
+    border-bottom: 1px solid var(--border-subtle, #e8e4df);
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+}
+
+.orienteHeaderBtn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 18px 8px;
+    border: none;
+    background: var(--fill-nude, #f3ede6);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-topo-deep, #3a332c);
+    cursor: pointer;
+    text-align: left;
+}
+
+.orienteHeaderBtn:hover {
+    background: #ebe3d8;
+}
+
+.orienteExpandLabel {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: none;
+    color: var(--color-topo, #6e6259);
+}
+
+.zoneDivider {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--border-subtle, #e8e4df);
+    list-style: none;
 }
 
 .orienteHeader {

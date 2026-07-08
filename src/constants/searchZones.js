@@ -31,7 +31,7 @@ export const CITY_ID_BY_GROUP = {
 export const ZONE_IDS_BY_GROUP = {
     "el poblado": POBLADO_ZONE_IDS,
     occidente: OCCIDENTE_ZONE_IDS,
-    oriente: [685, 410],
+    oriente: [],
     itagui: [],
     "la estrella": [],
     sabaneta: [],

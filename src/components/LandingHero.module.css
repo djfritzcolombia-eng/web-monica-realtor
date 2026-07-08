@@ -7,7 +7,8 @@
     flex-direction: column;
     align-items: stretch;
     padding: 0 20px 72px;
-    overflow: hidden;
+    overflow-x: clip;
+    overflow-y: visible;
     background: var(--gradient-page-continuous);
 }
 

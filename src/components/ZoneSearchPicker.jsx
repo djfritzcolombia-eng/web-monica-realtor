@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ORIENTE_ANTIOQUENO_CITIES } from "../constants/orienteAntioqueno";
 import { CREDIT_SEARCH_ZONES } from "../constants/searchZones";
 import { fetchOrienteAntioquenoCities } from "../services/wasiLocationService";
 import styles from "./ZoneSearchPicker.module.css";
@@ -16,13 +17,13 @@ export default function ZoneSearchPicker({
     compact = false,
 }) {
     const [open, setOpen] = useState(false);
-    const [orienteOpen, setOrienteOpen] = useState(false);
-    const [orienteCities, setOrienteCities] = useState([]);
-    const [orienteLoading, setOrienteLoading] = useState(false);
+    const [orienteOpen, setOrienteOpen] = useState(true);
+    const [orienteCities, setOrienteCities] = useState(ORIENTE_ANTIOQUENO_CITIES);
     const ref = useRef(null);
 
     useEffect(() => {
         onOpenChange?.(open);
+        if (open) setOrienteOpen(true);
     }, [open, onOpenChange]);
 
     useEffect(() => {
@@ -36,27 +37,22 @@ export default function ZoneSearchPicker({
     }, [open]);
 
     useEffect(() => {
-        if (!open || orienteCities.length > 0) return;
         let cancelled = false;
-        setOrienteLoading(true);
         fetchOrienteAntioquenoCities()
             .then((cities) => {
-                if (!cancelled) setOrienteCities(cities);
+                if (!cancelled && cities.length > 0) setOrienteCities(cities);
             })
-            .finally(() => {
-                if (!cancelled) setOrienteLoading(false);
-            });
+            .catch(() => {});
         return () => { cancelled = true; };
-    }, [open, orienteCities.length]);
+    }, []);
 
-    const selectedMain = MAIN_ZONES.find((zone) => zone.label === value);
     const orienteLabels = orienteCities
         .filter((city) => orienteCityIds.includes(city.id_city))
         .map((city) => city.label);
 
     const displayLabel = orienteCityIds.length > 0
         ? `Oriente Antioqueño (${orienteCityIds.length})`
-        : (selectedMain?.label || value || "");
+        : (MAIN_ZONES.find((zone) => zone.label === value)?.label || value || "");
 
     const handleMainSelect = (label) => {
         onOrienteChange?.([]);
@@ -71,6 +67,10 @@ export default function ZoneSearchPicker({
             : [...orienteCityIds, id];
         if (next.length > 0) onChange?.("");
         onOrienteChange?.(next);
+    };
+
+    const stopMenuClick = (event) => {
+        event.stopPropagation();
     };
 
     return (
@@ -90,7 +90,45 @@ export default function ZoneSearchPicker({
             </button>
 
             {open && (
-                <ul className={styles.menu} role="listbox">
+                <ul className={styles.menu} role="listbox" onMouseDown={stopMenuClick}>
+                    <li className={styles.orienteGroup}>
+                        <button
+                            type="button"
+                            className={styles.orienteHeaderBtn}
+                            onClick={() => setOrienteOpen((prev) => !prev)}
+                            aria-expanded={orienteOpen}
+                        >
+                            <span>Oriente Antioqueño</span>
+                            <span className={styles.orienteExpandLabel}>
+                                {orienteOpen ? "Ocultar" : "Ver municipios"}
+                            </span>
+                        </button>
+                        {orienteLabels.length > 0 && !orienteOpen && (
+                            <p className={styles.orienteHint}>
+                                {orienteLabels.join(" · ")}
+                            </p>
+                        )}
+                        {orienteOpen && (
+                            <div className={styles.orienteList}>
+                                {orienteCities.map((city) => (
+                                    <label
+                                        key={city.id_city}
+                                        className={styles.orienteItem}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={orienteCityIds.includes(city.id_city)}
+                                            onChange={() => toggleOrienteCity(city.id_city)}
+                                        />
+                                        <span>{city.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </li>
+
+                    <li className={styles.zoneDivider} aria-hidden />
+
                     {MAIN_ZONES.map((zone) => (
                         <li
                             key={zone.key}
@@ -102,48 +140,6 @@ export default function ZoneSearchPicker({
                             {zone.label}
                         </li>
                     ))}
-
-                    <li className={styles.orienteGroup}>
-                        <div className={styles.orienteHeader}>
-                            <span>Oriente Antioqueño</span>
-                            <button
-                                type="button"
-                                className={styles.orienteExpand}
-                                onClick={() => setOrienteOpen((prev) => !prev)}
-                            >
-                                {orienteOpen ? "Ocultar" : "Elegir municipios"}
-                            </button>
-                        </div>
-                        {orienteLabels.length > 0 && !orienteOpen && (
-                            <p className={styles.orienteHint}>
-                                {orienteLabels.join(" · ")}
-                            </p>
-                        )}
-                        {orienteOpen && (
-                            <>
-                                {orienteLoading && (
-                                    <p className={styles.orienteLoading}>Cargando municipios…</p>
-                                )}
-                                {!orienteLoading && (
-                                    <div className={styles.orienteList}>
-                                        {orienteCities.map((city) => (
-                                            <label
-                                                key={city.id_city}
-                                                className={styles.orienteItem}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={orienteCityIds.includes(city.id_city)}
-                                                    onChange={() => toggleOrienteCity(city.id_city)}
-                                                />
-                                                <span>{city.label}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </li>
                 </ul>
             )}
         </div>
