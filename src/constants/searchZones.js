@@ -47,7 +47,7 @@ export const CREDIT_SEARCH_ZONES = [
     { key: "el poblado", label: "El Poblado" },
     { key: "bello", label: "Bello" },
     { key: "occidente", label: "Occidente" },
-    { key: "oriente", label: "Oriente" },
+    { key: "oriente", label: "Oriente Antioqueño" },
 ];
 
 export const ALL_CREDIT_SEARCH_KEYS = CREDIT_SEARCH_ZONES.map((z) => z.key);
@@ -64,7 +64,19 @@ export function labelsFromGroupKeys(groupKeys = []) {
     });
 }
 
-export function buildWasiSearchQuery({ allZones = false, groupKeys = [] } = {}) {
+export function buildWasiSearchQuery({ allZones = false, groupKeys = [], orienteCityIds = [] } = {}) {
+    const orienteIds = [...new Set((orienteCityIds || []).map(String).filter(Boolean))];
+    if (orienteIds.length > 0) {
+        return {
+            groupKeysNorm: ["oriente"],
+            groupLabels: ["Oriente Antioqueño"],
+            cityIds: orienteIds,
+            zoneIds: [],
+            useHybrid: false,
+            orienteCityIds: orienteIds,
+        };
+    }
+
     const keys = groupKeys.map(norm);
 
     // Varias zonas o "todas": agregar por ciudad (máx. 6 llamadas, sin explosión de id_zone)

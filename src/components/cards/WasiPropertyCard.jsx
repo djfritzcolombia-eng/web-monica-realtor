@@ -229,16 +229,13 @@ export default function WasiPropertyCard({
 
                 {/* Ubicación */}
                 <div className={styles.locationBlock}>
-                    <div className={styles.laminaDatosTitulo}>Dirección</div>
-                    {(address || zone || city) && (
+                    <div className={styles.laminaDatosTitulo}>Ubicación</div>
+                    {(zone || city) && (
                         <div className={styles.locationRow}>
                             <div className={styles.location}>
-                                {address && <div className={styles.locationAddress}>{capitalize(address)}</div>}
-                                {(zone || city) && (
-                                    <div className={styles.locationZoneCity}>
-                                        {[capitalize(zone), capitalize(city)].filter(Boolean).join(" — ")}
-                                    </div>
-                                )}
+                                <div className={styles.locationZoneCity}>
+                                    {[capitalize(zone), capitalize(city)].filter(Boolean).join(" — ")}
+                                </div>
                             </div>
                             <div onClick={(e) => e.stopPropagation()} role="presentation">
                                 <PropertyLocationMap address={address} zone={zone} city={city} />

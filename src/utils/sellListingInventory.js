@@ -3,6 +3,7 @@ import {
     CREDIT_SEARCH_ZONES,
     MEDELLIN_CITY_ID,
 } from "../constants/searchZones";
+import { ORIENTE_FALLBACK_CITIES } from "../services/wasiLocationService";
 import { formatSellCurrencyDisplay } from "./sellListingCurrency";
 
 const norm = (s = "") =>
@@ -97,9 +98,26 @@ function propertyCityIds(property) {
     return [...new Set(keys.map((key) => CITY_ID_BY_GROUP[key]).filter(Boolean).map(String))];
 }
 
+function listingMatchesOrienteCityIds(listing = {}, cityIds = []) {
+    const listingCity = norm(listing.city || listing.zone || "");
+    if (!listingCity) return false;
+    return cityIds.some((id) => {
+        const city = ORIENTE_FALLBACK_CITIES.find((item) => item.id_city === String(id));
+        if (!city) return false;
+        const cityNorm = norm(city.label);
+        return listingCity.includes(cityNorm) || cityNorm.includes(listingCity);
+    });
+}
+
 export function listingMatchesSearchScope(property, { cityIds = [], zones = [] } = {}) {
     const keys = property.searchGroupKeys || [];
     const propertyCities = propertyCityIds(property);
+    const orienteIds = new Set(ORIENTE_FALLBACK_CITIES.map((city) => city.id_city));
+    const isOrienteSearch = cityIds.length > 0 && cityIds.every((id) => orienteIds.has(String(id)));
+
+    if (isOrienteSearch && listingMatchesOrienteCityIds(property, cityIds)) {
+        return true;
+    }
 
     if (zones.length > 0 && cityIds.length > 0) {
         const matchesPoblado = keys.includes("el poblado");

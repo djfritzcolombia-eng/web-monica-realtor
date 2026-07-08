@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import CustomDropdown from "./CustomDropdown";
 import PropertyFilterChips from "./PropertyFilterChips";
 import PropertyFiltersMenu from "./PropertyFiltersMenu";
+import ZoneSearchPicker from "./ZoneSearchPicker";
 import { CREDIT_SEARCH_ZONES, buildWasiSearchQuery } from "../constants/searchZones";
 import { EMPTY_ADVANCED_FILTER } from "../utils/propertyAdvancedFilters";
 import { useSessionTracking } from "../context/SessionTrackingContext";
@@ -38,8 +38,10 @@ export default function RegionCityFilter({
     advancedFilter = EMPTY_ADVANCED_FILTER,
     onAdvancedFilterApply = () => {},
     onAdvancedFilterChipRemove = () => {},
+    onZonePickerOpenChange = () => {},
 }) {
     const [selectedKeys, setSelectedKeys] = useState([]);
+    const [orienteCityIds, setOrienteCityIds] = useState([]);
     const [error, setError] = useState(null);
     const [calculatorOpen, setCalculatorOpen] = useState(false);
     const [creditSimulatorOpen, setCreditSimulatorOpen] = useState(false);
@@ -73,8 +75,9 @@ export default function RegionCityFilter({
         try {
             const raw = localStorage.getItem(persistKey);
             if (raw) {
-                const { groups } = JSON.parse(raw);
+                const { groups, orienteCities } = JSON.parse(raw);
                 if (Array.isArray(groups)) setSelectedKeys(groups);
+                if (Array.isArray(orienteCities)) setOrienteCityIds(orienteCities.map(String));
             }
         } catch {
             // ignore
@@ -83,15 +86,16 @@ export default function RegionCityFilter({
 
     useEffect(() => {
         try {
-            localStorage.setItem(persistKey, JSON.stringify({ groups: selectedKeys }));
+            localStorage.setItem(persistKey, JSON.stringify({ groups: selectedKeys, orienteCities: orienteCityIds }));
         } catch {
             // ignore
         }
-    }, [persistKey, selectedKeys]);
+    }, [persistKey, selectedKeys, orienteCityIds]);
 
     const handleSelect = (value) => {
         if (value) {
             setSelectedKeys([value]);
+            setOrienteCityIds([]);
             track("zone_select", {
                 action: "select_zone",
                 zone: value,
@@ -103,12 +107,27 @@ export default function RegionCityFilter({
         }
     };
 
-    const canApply = useMemo(() => selectedKeys.length > 0, [selectedKeys]);
+    const handleOrienteChange = (cityIds) => {
+        setOrienteCityIds(cityIds.map(String));
+        if (cityIds.length > 0) {
+            setSelectedKeys([]);
+            track("zone_select", {
+                action: "select_oriente_municipios",
+                orienteCityIds: cityIds,
+            });
+        }
+    };
+
+    const canApply = useMemo(
+        () => selectedKeys.length > 0 || orienteCityIds.length > 0,
+        [selectedKeys, orienteCityIds]
+    );
 
     const handleApply = () => {
         setError(null);
         const query = buildWasiSearchQuery({
             groupKeys: selectedKeys.map((label) => norm(label)),
+            orienteCityIds,
         });
         track("filter_applied", {
             action: "search_properties",
@@ -182,10 +201,12 @@ export default function RegionCityFilter({
                         <div className={styles.searchControls}>
                             <div className={styles.searchTopRow}>
                                 <div className={styles.dropdownWrap}>
-                                    <CustomDropdown
-                                        options={DISPLAY_ORDER.map((label) => ({ label, value: label }))}
+                                    <ZoneSearchPicker
                                         value={selectedKeys[0] || ""}
+                                        orienteCityIds={orienteCityIds}
                                         onChange={handleSelect}
+                                        onOrienteChange={handleOrienteChange}
+                                        onOpenChange={onZonePickerOpenChange}
                                         placeholder="Zona..."
                                         height={dropdownHeight}
                                         compact
@@ -238,10 +259,12 @@ export default function RegionCityFilter({
                     <div className={`${styles.searchControls} ${!compact ? styles.searchControlsHome : ""}`}>
                         <div className={styles.searchTopRow}>
                             <div className={styles.dropdownWrap}>
-                                <CustomDropdown
-                                    options={DISPLAY_ORDER.map((label) => ({ label, value: label }))}
+                                <ZoneSearchPicker
                                     value={selectedKeys[0] || ""}
+                                    orienteCityIds={orienteCityIds}
                                     onChange={handleSelect}
+                                    onOrienteChange={handleOrienteChange}
+                                    onOpenChange={onZonePickerOpenChange}
                                     placeholder="Zona..."
                                     height={dropdownHeight}
                                     compact={stacked}

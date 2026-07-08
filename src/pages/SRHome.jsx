@@ -5,6 +5,8 @@ import GlobalReset from "../components/GlobalReset";
 import Section from "../components/Section";
 import CardGrid from "../components/CardGrid";
 import WasiPropertyCard from "../components/cards/WasiPropertyCard";
+import SelectablePropertyCard from "../components/catalog/SelectablePropertyCard";
+import CatalogSelectionBar from "../components/catalog/CatalogSelectionBar";
 import FloatingSocial from "../components/FloatingSocial";
 import AppVersion from "../components/AppVersion";
 import RegionCityFilter from "../components/RegionCityFilter";
@@ -45,6 +47,13 @@ import {
     removeAdvancedFilterKey,
 } from "../utils/propertyAdvancedFilters";
 import { describeSiteSearchResult, parseSiteSearch } from "../utils/siteSearchEngine";
+import useSavedPropertySelection from "../hooks/useSavedPropertySelection";
+import { createPropertyCatalog } from "../services/propertyCatalogService";
+import {
+    buildCatalogShareMessage,
+    buildCatalogUrl,
+    MAX_CATALOG_PROPERTIES,
+} from "../utils/propertyCatalog";
 import "./SRHome.animations.css";
 import landingStyles from "../components/LandingHero.module.css";
 import resultsStyles from "./SRHome.module.css";
@@ -169,6 +178,23 @@ export default function SRHome() {
     const [advancedFilter, setAdvancedFilter] = useState(EMPTY_ADVANCED_FILTER);
     const [textSearchFilter, setTextSearchFilter] = useState(null);
     const [siteSearchLabel, setSiteSearchLabel] = useState("");
+    const [zonePickerOpen, setZonePickerOpen] = useState(false);
+    const [clientName, setClientName] = useState("");
+    const [generatingCatalog, setGeneratingCatalog] = useState(false);
+    const [generatedCatalogUrl, setGeneratedCatalogUrl] = useState("");
+    const [shareMessage, setShareMessage] = useState("");
+    const [catalogError, setCatalogError] = useState("");
+
+    const {
+        selectionMode,
+        setSelectionMode,
+        selectedProperties,
+        selectedCount,
+        toggleProperty,
+        clearSelection,
+        isSelected,
+        maxReached,
+    } = useSavedPropertySelection();
 
     // Filtros seleccionados (para UI)
     const [selectedGroups, setSelectedGroups] = useState([]); // ["itagui","el poblado",...]
@@ -1072,6 +1098,51 @@ export default function SRHome() {
         handleBackToSearch("button");
     };
 
+    const handleToggleSelectionMode = () => {
+        setSelectionMode((prev) => !prev);
+        setCatalogError("");
+    };
+
+    const handleToggleProperty = (property) => {
+        if (maxReached && !isSelected(property.id)) {
+            setCatalogError(`Puedes seleccionar hasta ${MAX_CATALOG_PROPERTIES} inmuebles.`);
+            return;
+        }
+        setCatalogError("");
+        toggleProperty(property);
+        setGeneratedCatalogUrl("");
+        setShareMessage("");
+    };
+
+    const handleGenerateCatalog = async () => {
+        setGeneratingCatalog(true);
+        setCatalogError("");
+        try {
+            const { slug } = await createPropertyCatalog({
+                clientName,
+                properties: selectedProperties,
+                createdBy: "public",
+            });
+            const url = buildCatalogUrl(slug);
+            const message = buildCatalogShareMessage({ clientName, catalogUrl: url });
+            setGeneratedCatalogUrl(url);
+            setShareMessage(message);
+        } catch (err) {
+            setCatalogError(err?.message || "No se pudo generar el catálogo.");
+        } finally {
+            setGeneratingCatalog(false);
+        }
+    };
+
+    const handleClearCatalogSelection = () => {
+        clearSelection();
+        setGeneratedCatalogUrl("");
+        setShareMessage("");
+        setCatalogError("");
+    };
+
+    const hideFloatingSocial = zonePickerOpen || selectedCount > 0;
+
     // Contador para badge del botón de filtros (móvil)
     // const filtersCount = selectedGroups.length + (selectedZones.length ? 1 : 0);
 
@@ -1085,7 +1156,14 @@ export default function SRHome() {
                 }}>
                     {!filterApplied ? (
                         <div className={landingStyles.hero}>
-                            <SiteTopBar showNav editorial onBrandClick={handleBrandHome} />
+                            <SiteTopBar
+                                showNav
+                                editorial
+                                onBrandClick={handleBrandHome}
+                                selectionMode={selectionMode}
+                                selectionCount={selectedCount}
+                                onToggleSelectionMode={handleToggleSelectionMode}
+                            />
                             <div className={landingStyles.heroInner}>
                                 <div className={landingStyles.heroBody}>
                                     <header className={landingStyles.intro} aria-label="Presentación">
@@ -1120,6 +1198,7 @@ export default function SRHome() {
                                             headingIntro
                                             onApply={handleApplyRegionCity}
                                             persistKey="rcf_selection_v1"
+                                            onZonePickerOpenChange={setZonePickerOpen}
                                             simulatorInitialData={simulatorBoot}
                                             onSimulatorConsumed={() => setSimulatorBoot(null)}
                                             creditSimulatorInitialData={creditSimulatorBoot}
@@ -1139,7 +1218,13 @@ export default function SRHome() {
                         </div>
                     ) : (
                         <>
-                            <SiteTopBar showNav onBrandClick={handleBrandHome} />
+                            <SiteTopBar
+                                showNav
+                                onBrandClick={handleBrandHome}
+                                selectionMode={selectionMode}
+                                selectionCount={selectedCount}
+                                onToggleSelectionMode={handleToggleSelectionMode}
+                            />
                             <div className={resultsStyles.resultsBar}>
                                 <div className={resultsStyles.resultsBarInner}>
                                     <div className={resultsStyles.resultsHeroGrid}>
@@ -1157,6 +1242,7 @@ export default function SRHome() {
                                             <RegionCityFilter
                                                 onApply={handleApplyRegionCity}
                                                 persistKey="rcf_selection_v1"
+                                                onZonePickerOpenChange={setZonePickerOpen}
                                                 compact
                                                 simulatorInitialData={simulatorBoot}
                                                 onSimulatorConsumed={() => setSimulatorBoot(null)}
@@ -1253,14 +1339,26 @@ export default function SRHome() {
                                     )}
                                     {!wasiLoading && !wasiError && wasiProps.length > 0 && (
                                         <div className="fadeInResults">
+                                            {catalogError && (
+                                                <p style={{ color: "#8b4513", margin: "0 0 12px" }}>{catalogError}</p>
+                                            )}
                                             <CardGrid
                                                 items={wasiProps}
                                                 render={(it) => (
-                                                    <WasiPropertyCard
-                                                        key={it.id || it.title}
-                                                        {...it}
-                                                        inBudget={!!creditBudgetFilter}
-                                                    />
+                                                    selectionMode ? (
+                                                        <SelectablePropertyCard
+                                                            key={it.id || it.title}
+                                                            property={it}
+                                                            selected={isSelected(it.id)}
+                                                            onToggle={handleToggleProperty}
+                                                        />
+                                                    ) : (
+                                                        <WasiPropertyCard
+                                                            key={it.id || it.title}
+                                                            {...it}
+                                                            inBudget={!!creditBudgetFilter}
+                                                        />
+                                                    )
                                                 )}
                                             />
                                             <Pagination
@@ -1279,7 +1377,19 @@ export default function SRHome() {
                 </main>
 
                 <AppVersion />
-                <FloatingSocial phone="573212080985" placement="bottom" />
+                <FloatingSocial phone="573212080985" placement="bottom" hidden={hideFloatingSocial} />
+                {selectedCount > 0 && (
+                    <CatalogSelectionBar
+                        selectedCount={selectedCount}
+                        clientName={clientName}
+                        onClientNameChange={setClientName}
+                        onGenerate={handleGenerateCatalog}
+                        generating={generatingCatalog}
+                        generatedUrl={generatedCatalogUrl}
+                        shareMessage={shareMessage}
+                        onClearSelection={handleClearCatalogSelection}
+                    />
+                )}
             </div>
         </>
     );

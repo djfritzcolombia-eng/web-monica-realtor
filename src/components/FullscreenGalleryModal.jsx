@@ -358,13 +358,12 @@ function FullscreenGalleryModal({
                             <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
                                 {title || "Propiedad"}
                             </div>
-                            {(zone || city || address) && (
+                            {(zone || city) && (
                                 <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 10 }}>
                                     {[zone, city].filter(Boolean).join(" — ")}
-                                    {address ? ` · ${address}` : ""}
                                 </div>
                             )}
-                            {(zone || city || address) && (
+                            {(zone || city) && (
                                 <div style={{ marginBottom: 12 }}>
                                     <PropertyLocationMap
                                         address={address}

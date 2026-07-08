@@ -10,6 +10,9 @@ export default function SiteTopBar({
     editorial = false,
     showNav = false,
     onBrandClick,
+    selectionMode = false,
+    selectionCount = 0,
+    onToggleSelectionMode,
 }) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -28,6 +31,20 @@ export default function SiteTopBar({
             {sellNav.badge && <span className={styles.navBadge}>{sellNav.badge}</span>}
         </Link>
     );
+
+    const selectionLink = onToggleSelectionMode ? (
+        <button
+            type="button"
+            className={`${styles.navLink} ${selectionMode ? styles.navLinkActive : ""}`}
+            onClick={onToggleSelectionMode}
+            aria-pressed={selectionMode}
+        >
+            Mis seleccionados
+            {selectionCount > 0 && (
+                <span className={styles.navBadge}>{selectionCount}</span>
+            )}
+        </button>
+    ) : null;
 
     const handleBrandClick = (event) => {
         if (onBrandClick) {
@@ -62,6 +79,7 @@ export default function SiteTopBar({
                     {showNav && (
                         <nav className={`${styles.nav} ${styles.navEditorialHome}`} aria-label="Navegación principal">
                             <SiteSearchBar initialQuery={onHome ? initialQuery : ""} />
+                            {selectionLink}
                             {sellLink}
                         </nav>
                     )}
@@ -79,6 +97,7 @@ export default function SiteTopBar({
                 {showNav && (
                     <>
                         <SiteSearchBar initialQuery={onHome ? initialQuery : ""} />
+                        {selectionLink}
                         {sellLink}
                     </>
                 )}
