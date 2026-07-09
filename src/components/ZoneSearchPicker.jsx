@@ -7,6 +7,7 @@ import styles from "./ZoneSearchPicker.module.css";
 
 const MAIN_ZONES = CREDIT_SEARCH_ZONES.filter((zone) => zone.key !== "oriente");
 const ORIENTE_LABEL = "Oriente";
+const FLYOUT_WIDTH = 248;
 
 function useMenuPosition(open, anchorRef) {
     const [style, setStyle] = useState(null);
@@ -42,6 +43,62 @@ function useMenuPosition(open, anchorRef) {
     return style;
 }
 
+function useOrienteFlyoutPosition(open, rowRef, menuRef) {
+    const [style, setStyle] = useState(null);
+
+    useEffect(() => {
+        if (!open || !rowRef.current || !menuRef.current) {
+            setStyle(null);
+            return undefined;
+        }
+
+        const update = () => {
+            const rowRect = rowRef.current.getBoundingClientRect();
+            const menuRect = menuRef.current.getBoundingClientRect();
+            const maxHeight = Math.min(420, window.innerHeight - 24);
+            const gap = 6;
+            let left = menuRect.right + gap;
+            let width = FLYOUT_WIDTH;
+            let top = rowRect.top - 4;
+            let placement = "right";
+
+            if (left + width > window.innerWidth - 12) {
+                left = menuRect.left - width - gap;
+            }
+            if (left < 12) {
+                placement = "below";
+                left = menuRect.left;
+                width = Math.max(menuRect.width, FLYOUT_WIDTH);
+                top = rowRect.bottom + gap;
+            }
+
+            if (top + maxHeight > window.innerHeight - 12) {
+                top = Math.max(12, window.innerHeight - maxHeight - 12);
+            }
+
+            setStyle({
+                position: "fixed",
+                top,
+                left,
+                width,
+                maxHeight,
+                zIndex: 10001,
+                "--flyout-placement": placement,
+            });
+        };
+
+        update();
+        window.addEventListener("resize", update);
+        window.addEventListener("scroll", update, true);
+        return () => {
+            window.removeEventListener("resize", update);
+            window.removeEventListener("scroll", update, true);
+        };
+    }, [open, rowRef, menuRef]);
+
+    return style;
+}
+
 export default function ZoneSearchPicker({
     value = "",
     orienteCityIds = [],
@@ -57,16 +114,23 @@ export default function ZoneSearchPicker({
     const [orienteCities, setOrienteCities] = useState(ORIENTE_ANTIOQUENO_CITIES);
     const wrapRef = useRef(null);
     const toggleRef = useRef(null);
+    const menuRef = useRef(null);
+    const orienteRowRef = useRef(null);
     const menuStyle = useMenuPosition(open, toggleRef);
+    const flyoutStyle = useOrienteFlyoutPosition(orienteOpen, orienteRowRef, menuRef);
 
     useEffect(() => {
         onOpenChange?.(open);
     }, [open, onOpenChange]);
 
     useEffect(() => {
+        if (!open) setOrienteOpen(false);
+    }, [open]);
+
+    useEffect(() => {
         function handleClick(event) {
             const inWrap = wrapRef.current?.contains(event.target);
-            const inMenu = event.target.closest?.(`[data-zone-menu="true"]`);
+            const inMenu = event.target.closest?.("[data-zone-menu]");
             if (!inWrap && !inMenu) setOpen(false);
         }
         if (open) document.addEventListener("mousedown", handleClick);
@@ -100,7 +164,11 @@ export default function ZoneSearchPicker({
     };
 
     const handleOrienteToggle = () => {
-        setOrienteOpen((prev) => !prev);
+        const nextOpen = !orienteOpen;
+        if (nextOpen) {
+            onChange?.("");
+        }
+        setOrienteOpen(nextOpen);
     };
 
     const toggleOrienteCity = (id_city) => {
@@ -114,10 +182,11 @@ export default function ZoneSearchPicker({
 
     const menu = open && menuStyle ? (
         <ul
+            ref={menuRef}
             className={styles.menu}
             style={menuStyle}
             role="listbox"
-            data-zone-menu="true"
+            data-zone-menu="main"
         >
             {MAIN_ZONES.map((zone) => (
                 <li
@@ -133,35 +202,45 @@ export default function ZoneSearchPicker({
 
             <li className={styles.orienteBlock}>
                 <button
+                    ref={orienteRowRef}
                     type="button"
-                    className={`${styles.option} ${styles.orienteOption} ${hasOrienteSelection ? styles.optionSelected : ""}`}
+                    className={`${styles.option} ${styles.orienteOption} ${(hasOrienteSelection || orienteOpen) ? styles.orienteActive : ""}`}
                     onClick={handleOrienteToggle}
                     aria-expanded={orienteOpen}
                 >
                     <span>{ORIENTE_LABEL}</span>
-                    <span className={styles.orienteChevron}>{orienteOpen ? "▴" : "▾"}</span>
+                    <span className={styles.orienteChevron} aria-hidden>{orienteOpen ? "◂" : "▸"}</span>
                 </button>
 
                 {hasOrienteSelection && !orienteOpen && (
                     <p className={styles.orienteHint}>{orienteLabels.join(" · ")}</p>
                 )}
-
-                {orienteOpen && (
-                    <div className={styles.orienteList}>
-                        {orienteCities.map((city) => (
-                            <label key={city.id_city} className={styles.orienteItem}>
-                                <input
-                                    type="checkbox"
-                                    checked={orienteCityIds.includes(city.id_city)}
-                                    onChange={() => toggleOrienteCity(city.id_city)}
-                                />
-                                <span>{city.label}</span>
-                            </label>
-                        ))}
-                    </div>
-                )}
             </li>
         </ul>
+    ) : null;
+
+    const flyout = orienteOpen && flyoutStyle ? (
+        <div
+            className={styles.orienteFlyout}
+            style={flyoutStyle}
+            data-zone-menu="flyout"
+            role="group"
+            aria-label="Municipios del Oriente"
+        >
+            <p className={styles.orienteFlyoutTitle}>Municipios</p>
+            <div className={styles.orienteList}>
+                {orienteCities.map((city) => (
+                    <label key={city.id_city} className={styles.orienteItem}>
+                        <input
+                            type="checkbox"
+                            checked={orienteCityIds.includes(city.id_city)}
+                            onChange={() => toggleOrienteCity(city.id_city)}
+                        />
+                        <span>{city.label}</span>
+                    </label>
+                ))}
+            </div>
+        </div>
     ) : null;
 
     return (
@@ -182,6 +261,7 @@ export default function ZoneSearchPicker({
             </button>
 
             {menu && createPortal(menu, document.body)}
+            {flyout && createPortal(flyout, document.body)}
         </div>
     );
 }
