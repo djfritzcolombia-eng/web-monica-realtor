@@ -87,7 +87,7 @@ export default function CatalogSelectionBar({
                             </button>
                             {selectedCount > 0 && (
                                 <button type="button" className={styles.secondaryBtn} onClick={onClearSelection}>
-                                    Limpiar
+                                    Limpiar selección
                                 </button>
                             )}
                         </>

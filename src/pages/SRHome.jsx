@@ -7,6 +7,7 @@ import CardGrid from "../components/CardGrid";
 import WasiPropertyCard from "../components/cards/WasiPropertyCard";
 import SelectablePropertyCard from "../components/catalog/SelectablePropertyCard";
 import CatalogSelectionBar from "../components/catalog/CatalogSelectionBar";
+import SelectionSearchBanner from "../components/catalog/SelectionSearchBanner";
 import FloatingSocial from "../components/FloatingSocial";
 import AppVersion from "../components/AppVersion";
 import RegionCityFilter from "../components/RegionCityFilter";
@@ -68,9 +69,19 @@ const SITE_SEARCH_MAX_PAGES = 5;
 
 const clampPerPage = (value) => Math.min(API_MAX_PER_PAGE, Math.max(1, value));
 
-// 🔠 Normalizador
 const norm = (s = "") =>
     s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+const LEGACY_SELECTION_STORAGE_KEY = "monica_saved_properties_v1";
+
+function scopeKey(cityIds = [], zones = []) {
+    return `${[...cityIds].map(String).sort().join(",")}|${[...zones].map(String).sort().join(",")}`;
+}
+
+function isSameSearchScope(previous, next) {
+    if (!previous || !next) return false;
+    return scopeKey(previous.cityIds, previous.zones) === scopeKey(next.cityIds, next.zones);
+}
 
 // Medellín conocido en Wasi
 const MEDELLIN_ID = MEDELLIN_CITY_ID;
@@ -184,6 +195,8 @@ export default function SRHome() {
     const [generatedCatalogUrl, setGeneratedCatalogUrl] = useState("");
     const [shareMessage, setShareMessage] = useState("");
     const [catalogError, setCatalogError] = useState("");
+    const [lastSearchScope, setLastSearchScope] = useState(null);
+    const [selectionSearchPrompt, setSelectionSearchPrompt] = useState(null);
 
     const {
         selectionMode,
@@ -229,6 +242,14 @@ export default function SRHome() {
     const [searchParams, setSearchParams] = useSearchParams();
     const initialUrlSearchDone = useRef(false);
     const inventoryPoolRef = useRef([]);
+
+    useEffect(() => {
+        try {
+            localStorage.removeItem(LEGACY_SELECTION_STORAGE_KEY);
+        } catch {
+            // ignore
+        }
+    }, []);
 
     useEffect(() => {
         if (!creditSimulatorBoot) return;
@@ -765,6 +786,11 @@ export default function SRHome() {
     const handleBackToSearch = (source = "button") => {
         track("navigation", { action: "back_to_search", source });
         setFilterApplied(false);
+        setSelectionMode(false);
+        setSelectionSearchPrompt(null);
+        setGeneratedCatalogUrl("");
+        setShareMessage("");
+        setCatalogError("");
         setWasiProps([]);
         setWasiError(null);
         setLastQuery(null);
@@ -951,9 +977,7 @@ export default function SRHome() {
             ?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
-    // Callback desde RegionCityFilter NUEVO:
-    // onApply({ zones, groups })
-    const handleApplyRegionCity = async ({ zones = [], cityIds = [], groups = [] }) => {
+    const executeRegionCitySearch = useCallback(async ({ zones = [], cityIds = [], groups = [] }) => {
         const groupsNorm = Array.isArray(groups) ? groups.map(norm) : [];
         const query = (cityIds?.length || zones?.length)
             ? {
@@ -966,6 +990,11 @@ export default function SRHome() {
         setSelectedGroups(query.groupKeysNorm?.length ? query.groupKeysNorm : groupsNorm);
         setSelectedZones(query.zoneIds || []);
         setFilterApplied(true);
+        setSelectionSearchPrompt(null);
+        setLastSearchScope({
+            cityIds: query.cityIds || [],
+            zones: query.zoneIds || [],
+        });
         markResultsInHistory();
 
         track("page_view", {
@@ -993,6 +1022,38 @@ export default function SRHome() {
         setTimeout(() => {
             document.getElementById("wasi-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 100);
+    }, [fetchWasiProperties, isMobile, track]);
+
+    const handleApplyRegionCity = async ({ zones = [], cityIds = [], groups = [] }) => {
+        const nextScope = { cityIds: cityIds || [], zones: zones || [] };
+        if (
+            selectedCount > 0
+            && lastSearchScope
+            && !isSameSearchScope(lastSearchScope, nextScope)
+        ) {
+            setSelectionSearchPrompt({ zones, cityIds, groups });
+            setFilterApplied(true);
+            return;
+        }
+
+        await executeRegionCitySearch({ zones, cityIds, groups });
+    };
+
+    const handleClearAndSearch = async () => {
+        clearSelection();
+        setSelectionMode(false);
+        setGeneratedCatalogUrl("");
+        setShareMessage("");
+        setCatalogError("");
+        if (selectionSearchPrompt) {
+            await executeRegionCitySearch(selectionSearchPrompt);
+        }
+    };
+
+    const handleKeepAndSearch = async () => {
+        if (selectionSearchPrompt) {
+            await executeRegionCitySearch(selectionSearchPrompt);
+        }
     };
 
     const handleAdvancedFilterApply = (nextFilter) => {
@@ -1145,7 +1206,7 @@ export default function SRHome() {
         setCatalogError("");
     };
 
-    const hideFloatingSocial = zonePickerOpen || selectedCount > 0;
+    const hideFloatingSocial = zonePickerOpen || (filterApplied && selectedCount > 0);
 
     // Contador para badge del botón de filtros (móvil)
     // const filtersCount = selectedGroups.length + (selectedZones.length ? 1 : 0);
@@ -1156,7 +1217,7 @@ export default function SRHome() {
             <div style={styles.page}>
                 <main style={{
                     ...styles.main,
-                    paddingBottom: filterApplied ? (isMobile ? 88 : 48) : 0,
+                    paddingBottom: filterApplied && selectedCount > 0 ? (isMobile ? 120 : 88) : (filterApplied ? (isMobile ? 88 : 48) : 0),
                 }}>
                     {!filterApplied ? (
                         <div className={landingStyles.hero}>
@@ -1164,9 +1225,6 @@ export default function SRHome() {
                                 showNav
                                 editorial
                                 onBrandClick={handleBrandHome}
-                                selectionMode={selectionMode}
-                                selectionCount={selectedCount}
-                                onToggleSelectionMode={handleToggleSelectionMode}
                             />
                             <div className={landingStyles.heroInner}>
                                 <div className={landingStyles.heroBody}>
@@ -1288,6 +1346,13 @@ export default function SRHome() {
                                         onExpand={handleExpandCreditFilter}
                                         onClear={clearCreditBudgetFilter}
                                     />
+                                    {selectionSearchPrompt && (
+                                        <SelectionSearchBanner
+                                            selectedCount={selectedCount}
+                                            onClearAndSearch={handleClearAndSearch}
+                                            onKeepAndSearch={handleKeepAndSearch}
+                                        />
+                                    )}
                                     {wasiLoading && (
                                         <HouseLineLoader label="Buscando propiedades…" />
                                     )}
@@ -1382,7 +1447,7 @@ export default function SRHome() {
 
                 <AppVersion />
                 <FloatingSocial phone="573212080985" placement="bottom" hidden={hideFloatingSocial} />
-                {selectedCount > 0 && (
+                {filterApplied && selectedCount > 0 && (
                     <CatalogSelectionBar
                         selectedCount={selectedCount}
                         clientName={clientName}

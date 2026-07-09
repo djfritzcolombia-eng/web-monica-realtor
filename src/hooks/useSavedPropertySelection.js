@@ -1,34 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { MAX_CATALOG_PROPERTIES } from "../utils/propertyCatalog";
 
-const STORAGE_KEY = "monica_saved_properties_v1";
-
-function readStoredMap() {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return {};
-        const parsed = JSON.parse(raw);
-        return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-        return {};
-    }
-}
-
-function writeStoredMap(map) {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-    } catch {
-        // ignore quota errors
-    }
-}
-
 export default function useSavedPropertySelection() {
-    const [selectedMap, setSelectedMap] = useState(() => readStoredMap());
+    const [selectedMap, setSelectedMap] = useState({});
     const [selectionMode, setSelectionMode] = useState(false);
-
-    useEffect(() => {
-        writeStoredMap(selectedMap);
-    }, [selectedMap]);
 
     const selectedProperties = useMemo(
         () => Object.values(selectedMap),
