@@ -47,7 +47,7 @@ export const CREDIT_SEARCH_ZONES = [
     { key: "el poblado", label: "El Poblado" },
     { key: "bello", label: "Bello" },
     { key: "occidente", label: "Occidente" },
-    { key: "oriente", label: "Oriente Antioqueño" },
+    { key: "oriente", label: "Oriente" },
 ];
 
 export const ALL_CREDIT_SEARCH_KEYS = CREDIT_SEARCH_ZONES.map((z) => z.key);
@@ -69,7 +69,7 @@ export function buildWasiSearchQuery({ allZones = false, groupKeys = [], oriente
     if (orienteIds.length > 0) {
         return {
             groupKeysNorm: ["oriente"],
-            groupLabels: ["Oriente Antioqueño"],
+            groupLabels: ["Oriente"],
             cityIds: orienteIds,
             zoneIds: [],
             useHybrid: false,

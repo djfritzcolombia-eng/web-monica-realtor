@@ -956,7 +956,11 @@ export default function SRHome() {
     const handleApplyRegionCity = async ({ zones = [], cityIds = [], groups = [] }) => {
         const groupsNorm = Array.isArray(groups) ? groups.map(norm) : [];
         const query = (cityIds?.length || zones?.length)
-            ? { groupKeysNorm: groupsNorm, cityIds, zoneIds: zones.map(String) }
+            ? {
+                groupKeysNorm: groupsNorm.length > 0 ? groupsNorm : [],
+                cityIds,
+                zoneIds: zones.map(String),
+            }
             : buildWasiSearchQuery({ groupKeys: groupsNorm });
 
         setSelectedGroups(query.groupKeysNorm?.length ? query.groupKeysNorm : groupsNorm);

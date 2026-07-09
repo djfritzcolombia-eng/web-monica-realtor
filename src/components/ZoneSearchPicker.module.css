@@ -46,22 +46,17 @@
 }
 
 .menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
     background: var(--surface-bg, #fff);
     border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(58, 51, 44, 0.08);
+    box-shadow: 0 8px 24px rgba(58, 51, 44, 0.12);
     border: 1px solid var(--border-subtle, #e8e4df);
     margin: 0;
     padding: 6px 0;
-    z-index: 1100;
     list-style: none;
-    max-height: min(420px, 70vh);
     overflow-y: auto;
     overflow-x: hidden;
     animation: fadeIn .18s cubic-bezier(.4, 0, .2, 1);
+    box-sizing: border-box;
 }
 
 @keyframes fadeIn {
@@ -75,6 +70,12 @@
     color: #6e6259;
     cursor: pointer;
     transition: background .15s, color .15s;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    border: none;
+    background: none;
+    font-family: inherit;
 }
 
 .option:hover,
@@ -88,74 +89,29 @@
     color: #fff;
 }
 
-.orienteGroup {
-    border-bottom: 1px solid var(--border-subtle, #e8e4df);
-    margin-bottom: 4px;
-    padding-bottom: 4px;
+.optionSelected:hover {
+    background: var(--color-topo-deep, #3a332c);
+    color: #fff;
 }
 
-.orienteHeaderBtn {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    width: 100%;
-    padding: 12px 18px 8px;
-    border: none;
-    background: var(--fill-nude, #f3ede6);
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-topo-deep, #3a332c);
-    cursor: pointer;
-    text-align: left;
-}
-
-.orienteHeaderBtn:hover {
-    background: #ebe3d8;
-}
-
-.orienteExpandLabel {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: none;
-    color: var(--color-topo, #6e6259);
-}
-
-.zoneDivider {
-    height: 1px;
-    margin: 4px 0;
-    background: var(--border-subtle, #e8e4df);
+.orienteBlock {
     list-style: none;
+    border-top: 1px solid var(--border-subtle, #e8e4df);
+    margin-top: 4px;
+    padding-top: 2px;
 }
 
-.orienteHeader {
+.orienteOption {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 12px 18px 8px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-topo, #6e6259);
 }
 
-.orienteExpand {
-    border: none;
-    background: transparent;
-    color: var(--color-topo-deep, #3a332c);
-    font-size: 12px;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 999px;
-}
-
-.orienteExpand:hover {
-    background: var(--fill-nude, #f3ede6);
+.orienteChevron {
+    font-size: 11px;
+    opacity: 0.7;
+    flex-shrink: 0;
 }
 
 .orienteList {
@@ -186,10 +142,10 @@
     flex-shrink: 0;
 }
 
-.orienteLoading,
 .orienteHint {
-    padding: 8px 18px 12px;
+    padding: 0 18px 10px;
     font-size: 12px;
     color: var(--color-topo, #6e6259);
     opacity: 0.85;
+    margin: 0;
 }

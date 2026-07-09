@@ -21,6 +21,8 @@ const CONTROL_HEIGHT_HOME = 44;
 const CALC_LABEL = "Simulador de gastos notariales";
 const CREDIT_LABEL = "Simulador crédito hipotecario";
 
+const ORIENTE_LABEL = "Oriente";
+
 export default function RegionCityFilter({
     onApply = () => { },
     persistKey = "zone_selection_v1",
@@ -131,7 +133,7 @@ export default function RegionCityFilter({
         });
         track("filter_applied", {
             action: "search_properties",
-            groups: selectedKeys,
+            groups: orienteCityIds.length > 0 ? [ORIENTE_LABEL] : selectedKeys,
             zones: query.zoneIds,
             cityIds: query.cityIds,
             metadata: buildSearchMetadata({
@@ -144,7 +146,7 @@ export default function RegionCityFilter({
         onApply({
             zones: query.zoneIds,
             cityIds: query.cityIds,
-            groups: selectedKeys,
+            groups: orienteCityIds.length > 0 ? [ORIENTE_LABEL] : selectedKeys,
             useHybrid: query.useHybrid,
         });
     };
