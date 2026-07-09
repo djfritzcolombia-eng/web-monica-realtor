@@ -50,6 +50,7 @@
         z-index: 2;
         width: auto;
         min-width: 0;
+        max-width: 34%;
     }
 
     .resultsHeroCenter {
@@ -61,6 +62,7 @@
         align-self: center;
         z-index: 1;
         width: max-content;
+        max-width: calc(100% - 88px);
         pointer-events: none;
     }
 

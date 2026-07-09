@@ -3,7 +3,6 @@ import { MAX_CATALOG_PROPERTIES } from "../utils/propertyCatalog";
 
 export default function useSavedPropertySelection() {
     const [selectedMap, setSelectedMap] = useState({});
-    const [selectionMode, setSelectionMode] = useState(false);
 
     const selectedProperties = useMemo(
         () => Object.values(selectedMap),
@@ -38,8 +37,6 @@ export default function useSavedPropertySelection() {
     );
 
     return {
-        selectionMode,
-        setSelectionMode,
         selectedMap,
         selectedProperties,
         selectedCount,

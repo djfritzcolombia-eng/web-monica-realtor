@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import GlobalReset from "../components/GlobalReset";
 import Section from "../components/Section";
 import CardGrid from "../components/CardGrid";
-import WasiPropertyCard from "../components/cards/WasiPropertyCard";
 import SelectablePropertyCard from "../components/catalog/SelectablePropertyCard";
 import CatalogSelectionBar from "../components/catalog/CatalogSelectionBar";
 import SelectionSearchBanner from "../components/catalog/SelectionSearchBanner";
@@ -199,8 +198,6 @@ export default function SRHome() {
     const [selectionSearchPrompt, setSelectionSearchPrompt] = useState(null);
 
     const {
-        selectionMode,
-        setSelectionMode,
         selectedProperties,
         selectedCount,
         toggleProperty,
@@ -786,7 +783,6 @@ export default function SRHome() {
     const handleBackToSearch = (source = "button") => {
         track("navigation", { action: "back_to_search", source });
         setFilterApplied(false);
-        setSelectionMode(false);
         setSelectionSearchPrompt(null);
         setGeneratedCatalogUrl("");
         setShareMessage("");
@@ -1041,7 +1037,6 @@ export default function SRHome() {
 
     const handleClearAndSearch = async () => {
         clearSelection();
-        setSelectionMode(false);
         setGeneratedCatalogUrl("");
         setShareMessage("");
         setCatalogError("");
@@ -1163,11 +1158,6 @@ export default function SRHome() {
         handleBackToSearch("button");
     };
 
-    const handleToggleSelectionMode = () => {
-        setSelectionMode((prev) => !prev);
-        setCatalogError("");
-    };
-
     const handleToggleProperty = (property) => {
         if (maxReached && !isSelected(property.id)) {
             setCatalogError(`Puedes seleccionar hasta ${MAX_CATALOG_PROPERTIES} inmuebles.`);
@@ -1283,9 +1273,6 @@ export default function SRHome() {
                             <SiteTopBar
                                 showNav
                                 onBrandClick={handleBrandHome}
-                                selectionMode={selectionMode}
-                                selectionCount={selectedCount}
-                                onToggleSelectionMode={handleToggleSelectionMode}
                             />
                             <div className={resultsStyles.resultsBar}>
                                 <div className={resultsStyles.resultsBarInner}>
@@ -1414,20 +1401,13 @@ export default function SRHome() {
                                             <CardGrid
                                                 items={wasiProps}
                                                 render={(it) => (
-                                                    selectionMode ? (
-                                                        <SelectablePropertyCard
-                                                            key={it.id || it.title}
-                                                            property={it}
-                                                            selected={isSelected(it.id)}
-                                                            onToggle={handleToggleProperty}
-                                                        />
-                                                    ) : (
-                                                        <WasiPropertyCard
-                                                            key={it.id || it.title}
-                                                            {...it}
-                                                            inBudget={!!creditBudgetFilter}
-                                                        />
-                                                    )
+                                                    <SelectablePropertyCard
+                                                        key={it.id || it.title}
+                                                        property={it}
+                                                        selected={isSelected(it.id)}
+                                                        onToggle={handleToggleProperty}
+                                                        inBudget={!!creditBudgetFilter}
+                                                    />
                                                 )}
                                             />
                                             <Pagination
