@@ -23,7 +23,10 @@ import {
     getRevisionLabels,
 } from "../constants/sellListingRevision";
 import { buildSellListingUrl } from "../utils/sellListingLinks";
-import { normalizePhotoFiles } from "../utils/normalizePhotoFiles";
+import {
+    formatPhotoNormalizeError,
+    normalizePhotoFiles,
+} from "../utils/normalizePhotoFiles";
 import {
     isListingVerified,
     readSellListingTracking,
@@ -186,16 +189,24 @@ export default function SellPropertyPage() {
     };
 
     const handlePhotoChange = async (event) => {
+        const incoming = Array.from(event.target.files || []);
         try {
-            const files = await normalizePhotoFiles(event.target.files);
+            const { files, errors } = await normalizePhotoFiles(incoming);
             if (!files.length) {
-                setError("No se pudieron leer las fotos seleccionadas. Prueba con JPG o PNG desde tu galería.");
+                setError(formatPhotoNormalizeError(errors, incoming.length > 0));
                 return;
             }
-            setError("");
             setPhotos((prev) => [...prev, ...files].slice(0, 12));
-        } catch {
-            setError("No se pudieron procesar las fotos. Intenta con otra imagen.");
+            if (errors.length) {
+                setError(
+                    `Se agregaron ${files.length} foto(s). Algunas no se pudieron procesar: prueba tomarlas de nuevo o elegir JPG/PNG.`
+                );
+            } else {
+                setError("");
+            }
+        } catch (err) {
+            console.error("[sell-photos] process failed", err);
+            setError("No se pudieron procesar las fotos. Intenta con otra imagen o vuelve a tomarlas con la cámara.");
         } finally {
             event.target.value = "";
         }
@@ -568,7 +579,7 @@ export default function SellPropertyPage() {
                             <fieldset className={`${stylesLocal.fieldset}${fieldsetNeedsHighlight(["photos"], highlightedFields) ? ` ${stylesLocal.fieldsetHighlight}` : ""}`}>
                                 <legend>Fotografías *</legend>
                                 <p className={stylesLocal.help}>
-                                    Sube hasta 12 fotos. Formatos JPG o PNG. Mínimo 1 foto.
+                                    Sube hasta 12 fotos (iPhone o Android). Se optimizan automáticamente. Mínimo 1 foto.
                                 </p>
 
                                 {existingPhotos.length > 0 && (
@@ -602,7 +613,7 @@ export default function SellPropertyPage() {
                                 <input
                                     ref={galleryInputRef}
                                     type="file"
-                                    accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                                    accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp"
                                     multiple
                                     className={stylesLocal.hiddenInput}
                                     onChange={handlePhotoChange}

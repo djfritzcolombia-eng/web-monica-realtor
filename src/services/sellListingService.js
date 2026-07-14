@@ -212,6 +212,13 @@ export async function uploadSellListingPhotos(listingId, files, storageRoot = ST
                 name: file.name || safeName,
             });
         } catch (err) {
+            console.error("[sell-photos] upload failed", {
+                name: file?.name,
+                type: file?.type,
+                size: file?.size,
+                code: err?.code,
+                message: err?.message,
+            });
             throw mapFirebasePermissionError(
                 err,
                 "No se pudieron subir las fotos. Verifica tu conexión e intenta de nuevo. Si persiste, contáctanos por WhatsApp."
@@ -220,7 +227,9 @@ export async function uploadSellListingPhotos(listingId, files, storageRoot = ST
     }
 
     if (!uploads.length && files.length > 0) {
-        throw new Error("No se pudieron procesar las fotos seleccionadas. Usa JPG o PNG desde tu galería.");
+        throw new Error(
+            "No se pudieron subir las fotos del celular. Vuelve a elegirlas desde la galería o tómalas con la cámara de esta página."
+        );
     }
 
     return uploads;
